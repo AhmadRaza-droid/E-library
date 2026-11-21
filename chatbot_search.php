@@ -41,24 +41,26 @@ if (!$terms) {
 }
 
 $where = [];
-$params = [];
+$whereParams = [];
+$scoreParts = [];
+$scoreParams = [];
 foreach ($terms as $term) {
     $like = '%' . like_escape($term) . '%';
     $where[] = '(title LIKE ? OR author LIKE ? OR category LIKE ? OR description LIKE ?)';
-    array_push($params, $like, $like, $like, $like);
+    array_push($whereParams, $like, $like, $like, $like);
+    // Rank title matches above author, category, and description matches.
+    $scoreParts[] = '((title LIKE ?) * 7 + (author LIKE ?) * 5 + (category LIKE ?) * 4 + (description LIKE ?))';
+    array_push($scoreParams, $like, $like, $like, $like);
 }
 $phraseLike = '%' . like_escape($q) . '%';
-$sql = "SELECT id, title, author, category
+$sql = "SELECT id, title, author, category, (" . implode(' + ', $scoreParts) . ") AS relevance
         FROM books
         WHERE " . implode(' OR ', $where) . "
-        ORDER BY CASE
-            WHEN title LIKE ? THEN 0
-            WHEN author LIKE ? THEN 1
-            WHEN category LIKE ? THEN 2
-            ELSE 3
-        END, title ASC
+        ORDER BY relevance DESC,
+            CASE WHEN title LIKE ? THEN 0 WHEN author LIKE ? THEN 1 WHEN category LIKE ? THEN 2 ELSE 3 END,
+            title ASC
         LIMIT 5";
-array_push($params, $phraseLike, $phraseLike, $phraseLike);
+$params = array_merge($scoreParams, $whereParams, [$phraseLike, $phraseLike, $phraseLike]);
 $types = str_repeat('s', count($params));
 $rows = db_all($conn, $sql, $types, $params);
 
