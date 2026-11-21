@@ -8,8 +8,6 @@ $allowed = [
     'site_name' => 100,
     'site_tagline' => 200,
     'contact_email' => 150,
-    'contact_phone' => 40,
-    'contact_address' => 300,
     'footer_text' => 200,
     'maintenance_mode' => 1,
     'allow_registration' => 1,
@@ -18,8 +16,6 @@ $defaults = [
     'site_name' => "Book's Library",
     'site_tagline' => 'Read. Learn. Grow.',
     'contact_email' => '',
-    'contact_phone' => '+92 300 1234567',
-    'contact_address' => 'Management & Technology University, Lahore',
     'footer_text' => "© " . date('Y') . " Book's Library. All Rights Reserved.",
     'maintenance_mode' => '0',
     'allow_registration' => '1',
@@ -104,10 +100,8 @@ body.dark-mode{background:#0c1422;color:#e7edf5}.dark-mode .settings-card{backgr
 <div class="settings-field"><label for="site_tagline">Tagline</label><input id="site_tagline" type="text" name="site_tagline" maxlength="200" value="<?php echo e($settings['site_tagline']); ?>"><span class="settings-hint">Displayed on pages that use the site tagline setting.</span></div>
 <div class="settings-field"><label for="footer_text">Footer text</label><input id="footer_text" type="text" name="footer_text" maxlength="200" value="<?php echo e($settings['footer_text']); ?>"></div>
 </section>
-<section class="settings-card"><h2>✉️ Contact information</h2><p>Update the contact details shown by supported website pages.</p>
-<div class="settings-field"><label for="contact_email">Contact email</label><input id="contact_email" type="email" name="contact_email" maxlength="150" value="<?php echo e($settings['contact_email']); ?>"></div>
-<div class="settings-field"><label for="contact_phone">Contact phone</label><input id="contact_phone" type="text" name="contact_phone" maxlength="40" value="<?php echo e($settings['contact_phone']); ?>"></div>
-<div class="settings-field"><label for="contact_address">Contact address</label><textarea id="contact_address" name="contact_address" maxlength="300" rows="3"><?php echo e($settings['contact_address']); ?></textarea></div>
+<section class="settings-card"><h2>✉️ Contact email</h2><p>Book's Library is an online library. Visitors can contact the team through this email address only.</p>
+<div class="settings-field"><label for="contact_email">Gmail / Contact email</label><input id="contact_email" type="email" name="contact_email" maxlength="150" value="<?php echo e($settings['contact_email']); ?>" placeholder="yourlibrary@gmail.com"><span class="settings-hint">This email is shown on the Contact page and used for contact message notifications.</span></div>
 </section>
 <section class="settings-card"><h2>🛠️ Access and availability</h2><p>These controls change who can access the public library.</p>
 <div class="settings-field"><label for="maintenance_mode">Maintenance mode</label><select id="maintenance_mode" name="maintenance_mode"><option value="0" <?php echo $settings['maintenance_mode']==='0'?'selected':''; ?>>Off — website open</option><option value="1" <?php echo $settings['maintenance_mode']==='1'?'selected':''; ?>>On — show maintenance page</option></select><span class="settings-hint">When enabled, visitors see a maintenance notice. Admins can still sign in and manage the site.</span></div>
