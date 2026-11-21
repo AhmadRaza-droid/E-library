@@ -302,6 +302,34 @@ $book_requests = mysqli_query($conn,
         }
         @media(max-width:390px) { .stats-container { grid-template-columns:1fr; } }
 
+        /* Dashboard overflow and responsive layout fix */
+        html, body { max-width:100%; overflow-x:hidden; }
+        .main-content {
+            width:calc(100% - 270px);
+            min-width:0;
+            max-width:none;
+            overflow-x:clip;
+        }
+        .stats-container {
+            width:100%;
+            min-width:0;
+            grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+            align-items:stretch;
+        }
+        .stat-card { width:auto; min-width:0; }
+        .stat-card h2 { overflow-wrap:anywhere; }
+        .admin-quick-actions, .table-section { min-width:0; }
+        .quick-action-grid {
+            grid-template-columns:repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+        }
+        @media (max-width:768px) {
+            .main-content { width:100%; max-width:100%; }
+            .stats-container { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+            .quick-action-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width:390px) {
+            .stats-container, .quick-action-grid { grid-template-columns:1fr; }
+        }
     </style>
 </head>
 <body>
