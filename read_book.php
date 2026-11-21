@@ -24,6 +24,11 @@ $readUrl = resolve_read_link($readValue);   // only http(s) / our own uploads
 
 // Resolve downloads for local PDF uploads and Gutenberg imports with empty link fields.
 $downloadValue = trim((string)($book['download_epub_link'] ?? ''));
+// Keep local PDF reader/download actions working for older upload records.
+if ($downloadValue === '' && !empty($book['pdf_file'])) {
+    $downloadValue = trim((string)$book['pdf_file']);
+}
+// Gutenberg imports store the Gutenberg ID in books.id; use it only as the final fallback.
 if ($downloadValue === '' && (int)$book['id'] > 0) {
     $downloadValue = (string)(int)$book['id'];
 }
