@@ -173,7 +173,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $valid_pages = ['dashboard', 'add_book', 'categories', 'website', 'all_books', 'all_users', 'messages', 'notifications', 'auto_import', 'book_requests', 'reviews'];
 $page = (isset($_GET['page']) && in_array($_GET['page'], $valid_pages, true)) ? $_GET['page'] : 'dashboard';
 
-$books         = mysqli_query($conn, "SELECT * FROM books ORDER BY id DESC");
+// Book management: paginate the catalogue so large imports (2,000+ books) stay fast.
+$bookSearch = trim((string)($_GET['book_search'] ?? ''));
+$bookPage = max(1, (int)($_GET['book_page'] ?? 1));
+$bookPerPage = 25;
+$bookWhereSql = '';
+if ($bookSearch !== '') {
+    $bookTerm = mysqli_real_escape_string($conn, $bookSearch);
+    $bookWhereSql = " WHERE title LIKE '%{$bookTerm}%' OR author LIKE '%{$bookTerm}%' OR category LIKE '%{$bookTerm}%'";
+}
+$bookTotal = (int)db_value($conn, "SELECT COUNT(*) FROM books" . $bookWhereSql, '', [], 0);
+$bookPages = max(1, (int)ceil($bookTotal / $bookPerPage));
+$bookPage = min($bookPage, $bookPages);
+$bookOffset = ($bookPage - 1) * $bookPerPage;
+$books = mysqli_query($conn, "SELECT id, title, author, category, download_count, cover_image_url, cover_file, image, pdf_file FROM books" . $bookWhereSql . " ORDER BY id DESC LIMIT {$bookPerPage} OFFSET {$bookOffset}");
 // Messages inbox: searchable, status-filtered and paginated.
 $messageSearch = trim((string)($_GET['message_search'] ?? ''));
 $messageStatus = (string)($_GET['message_status'] ?? 'all');
@@ -565,6 +578,24 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
             .request-filter-form,.review-filter-form { display:grid; grid-template-columns:1fr 1fr; }
             .request-filter-form input[type=search],.review-filter-form input[type=search] { grid-column:1 / -1; min-width:0; }
         }
+        .admin-books-section { min-width:0; }
+        .books-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+        .books-summary { color:#64748b; font-size:13px; margin-top:4px; }
+        .books-filter-form { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin:12px 0 16px; }
+        .books-filter-form input[type=search] { flex:1 1 280px; min-width:180px; margin:0; min-height:40px; }
+        .books-reset { padding:9px 12px; text-decoration:none; font-weight:600; color:#24527a; }
+        .books-table-wrap { width:100%; overflow-x:auto; }
+        .books-table { min-width:850px; }
+        .books-table td { vertical-align:middle; }
+        .books-empty { text-align:center; padding:26px; color:#64748b; }
+        .books-pagination { display:flex; flex-wrap:wrap; gap:6px; margin-top:15px; }
+        .books-pagination a { min-width:34px; padding:7px 10px; border-radius:7px; text-align:center; text-decoration:none; background:#edf2f7; color:#1e293b; }
+        .books-pagination a.current { background:#0b1f3a; color:#fff; }
+        body.dark-mode .books-summary,body.dark-mode .books-empty { color:#cbd5e1; }
+        body.dark-mode .books-reset { color:#9cc7ff; }
+        body.dark-mode .books-pagination a { background:#263650; color:#f5f7fb; }
+        body.dark-mode .books-pagination a.current { background:#4775aa; }
+        @media(max-width:640px) { .books-filter-form { display:grid; grid-template-columns:1fr auto; } .books-filter-form input[type=search] { grid-column:1/-1; min-width:0; } }
     </style>
 </head>
 <body>
@@ -710,24 +741,33 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
 
     <!-- ========== ALL BOOKS PAGE ========== -->
     <?php if($page == 'all_books'): ?>
-    <div class="table-section">
-        <h2>📚 All Books (<?php echo mysqli_num_rows($books); ?>)</h2>
-        <table>
-            <tr><th>ID</th><th>Cover</th><th>Title</th><th>Author</th><th>Category</th><th>Downloads</th><th>Action</th></tr>
-            <?php while($row = mysqli_fetch_assoc($books)){ ?>
+    <div class="table-section admin-books-section">
+        <div class="books-heading"><div><h2>📚 All Books (<?php echo number_format($bookTotal); ?>)</h2><p class="books-summary">Showing <?php echo $bookTotal ? ($bookOffset + 1) : 0; ?>–<?php echo min($bookOffset + $bookPerPage, $bookTotal); ?> of <?php echo number_format($bookTotal); ?> books</p></div></div>
+        <form method="GET" action="admin_dashboard.php" class="books-filter-form">
+            <input type="hidden" name="page" value="all_books">
+            <input type="search" name="book_search" value="<?php echo e($bookSearch); ?>" placeholder="Search title, author or category..." aria-label="Search books">
+            <button type="submit" class="green">Search</button>
+            <a href="admin_dashboard.php?page=all_books" class="books-reset">Reset</a>
+        </form>
+        <div class="books-table-wrap"><table class="books-table">
+            <thead><tr><th>ID</th><th>Cover</th><th>Title</th><th>Author</th><th>Category</th><th>Downloads</th><th>Action</th></tr></thead>
+            <tbody>
+            <?php if ($books && mysqli_num_rows($books) > 0): while($row = mysqli_fetch_assoc($books)){ ?>
             <tr>
-                <td><?php echo $row['id']; ?></td>
+                <td><?php echo (int)$row['id']; ?></td>
                 <?php $adminCover = safe_url($row['cover_image_url'] ?? '') ?: (safe_url($row['cover_file'] ?? '') ?: safe_url($row['image'] ?? '')); ?>
-                <td><?php if ($adminCover !== ''): ?><img src="<?php echo e($adminCover); ?>" width="50" alt="Book cover" style="border-radius:5px;"><?php else: ?>📚<?php endif; ?></td>
-                <td><?php echo htmlspecialchars($row['title']); ?></td>
-                <td><?php echo htmlspecialchars($row['author']); ?></td>
-                <td><?php echo htmlspecialchars($row['category'] ?? 'N/A'); ?></td>
-                <td><?php echo $row['download_count'] ?? 0; ?></td>
-                <td><form method="POST" action="?page=all_books" style="display:inline;" onsubmit="return confirm('<?php echo !empty($row['pdf_file']) || !empty($row['cover_file']) ? 'Delete this book? Uploaded files remain on the server.' : 'Delete this book?'; ?>')">
-<?php echo csrf_field(); ?><input type="hidden" name="delete_book" value="<?php echo (int)$row['id']; ?>"><button type="submit" class="red">Delete</button></form></td>
+                <td><?php if ($adminCover !== ''): ?><img src="<?php echo e($adminCover); ?>" width="50" height="65" loading="lazy" alt="Book cover" onerror="this.replaceWith(document.createTextNode('📚'))" style="border-radius:5px;object-fit:cover;"><?php else: ?>📚<?php endif; ?></td>
+                <td><?php echo e($row['title'] ?? ''); ?></td><td><?php echo e($row['author'] ?? ''); ?></td><td><?php echo e($row['category'] ?? 'N/A'); ?></td><td><?php echo (int)($row['download_count'] ?? 0); ?></td>
+                <td><form method="POST" action="?page=all_books" style="display:inline;" onsubmit="return confirm('Delete this book and its associated uploaded files?')">
+                    <?php echo csrf_field(); ?><input type="hidden" name="delete_book" value="<?php echo (int)$row['id']; ?>"><button type="submit" class="red">Delete</button>
+                </form></td>
             </tr>
-            <?php } ?>
-        </table>
+            <?php } else: ?><tr><td colspan="7" class="books-empty">No books match your search.</td></tr><?php endif; ?>
+            </tbody>
+        </table></div>
+        <?php if ($bookPages > 1): ?><nav class="books-pagination" aria-label="Book pages">
+            <?php for($p=1;$p<=$bookPages;$p++): ?><a class="<?php echo $p===$bookPage?'current':''; ?>" href="?page=all_books&amp;book_search=<?php echo rawurlencode($bookSearch); ?>&amp;book_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?>
+        </nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
