@@ -9,11 +9,20 @@ $filter = trim((string)($_GET['q'] ?? ''));
 $type = (string)($_GET['type'] ?? '');
 $from = trim((string)($_GET['from'] ?? ''));
 $to = trim((string)($_GET['to'] ?? ''));
-$where=[];$types='';$params=[];
+$where=[];$types='';$params=[];$filterError='';
+$validDate = static function($value){
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) return false;
+    return checkdate((int)$m[2], (int)$m[3], (int)$m[1]);
+};
+if (($from !== '' && !$validDate($from)) || ($to !== '' && !$validDate($to))) {
+    $filterError = 'Please enter valid dates for the activity filter.';
+} elseif ($from !== '' && $to !== '' && $from > $to) {
+    $filterError = 'The From date cannot be later than the To date.';
+}
 if($filter!==''){$where[]='(user_name LIKE ? OR action LIKE ? OR details LIKE ? OR ip_address LIKE ? OR page LIKE ?)';$like='%'.$filter.'%';$types.='sssss';array_push($params,$like,$like,$like,$like,$like);}
 if(in_array($type,['guest','user','admin'],true)){$where[]='actor_type=?';$types.='s';$params[]=$type;}
-if($from!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$from)){$where[]='created_at>=?';$types.='s';$params[]=$from.' 00:00:00';}
-if($to!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$to)){$where[]='created_at<=?';$types.='s';$params[]=$to.' 23:59:59';}
+if($filterError === '' && $from !== ''){$where[]='created_at>=?';$types.='s';$params[]=$from.' 00:00:00';}
+if($filterError === '' && $to !== ''){$where[]='created_at<=?';$types.='s';$params[]=$to.' 23:59:59';}
 $sqlWhere=$where?' WHERE '.implode(' AND ',$where):'';
 $total=(int)db_value($conn,'SELECT COUNT(*) FROM website_activity_logs'.$sqlWhere,$types,$params,0);
 $pages=max(1,(int)ceil($total/$perPage));
@@ -31,7 +40,7 @@ body{background:#eef2f7;color:#172338;font-family:Segoe UI,Arial,sans-serif}.wra
 <label>Search user/action/IP/page<input name="q" value="<?php echo e($filter); ?>" placeholder="Name, IP, action..."></label>
 <label>Actor<select name="type"><option value="">Everyone</option><option value="user" <?php echo $type==='user'?'selected':''; ?>>Registered users</option><option value="guest" <?php echo $type==='guest'?'selected':''; ?>>Guests</option><option value="admin" <?php echo $type==='admin'?'selected':''; ?>>Admins</option></select></label>
 <label>From<input type="date" name="from" value="<?php echo e($from); ?>"></label><label>To<input type="date" name="to" value="<?php echo e($to); ?>"></label>
-<button>Filter</button><a href="admin_user_activity.php">Clear</a></form><p class="muted"><?php echo number_format($total); ?> records · newest first · Asia/Karachi server time.</p></section>
+<button>Filter</button><a href="admin_user_activity.php">Clear</a></form><?php if($filterError !== ''): ?><p role="alert" style="color:#b42318;font-weight:600;margin-top:12px;"><?php echo e($filterError); ?></p><?php endif; ?><p class="muted"><?php echo number_format($total); ?> records · newest first · Asia/Karachi server time.</p></section>
 <section class="card tablewrap"><table><thead><tr><th>Date &amp; time</th><th>Visitor / User</th><th>Type</th><th>Action</th><th>Details</th><th>IP</th><th>Page</th><th>Method</th><th>Browser / device</th></tr></thead><tbody>
 <?php if(!$rows): ?><tr><td colspan="9">No activity found.</td></tr><?php else: foreach($rows as $row): ?><tr>
 <td><?php echo e($row['created_at']); ?></td><td><?php echo e($row['user_name']); ?><div class="muted">User ID: <?php echo (int)$row['user_id']; ?></div></td>
