@@ -419,6 +419,7 @@ function getBotReply(message){
         {test:/\b(review|rating|rate|stars|feedback)\b/,answer:'⭐ Book listing par rating select karein aur review likh kar Submit Review dabayein. Review dene ke liye login zaroori hai.'},
         {test:/\b(request|mangwa|mangwana|book chahiye|suggest a book|new book)\b/,answer:'📩 Jo book library mein nahi mil rahi, us ke liye Book Request option/page par title aur category submit karein. Admin request review karega; addition guaranteed nahi hoti.'},
         {test:/\b(category|categories|subject|subjects|kis qisam|genre)\b/,answer:'🗂 Books page par category filter use karein, ya home page ke Browse by Subject section se available categories explore karein.'},
+        {test:/\b(search|searching|find a book|find books|look for|filter|talash|dhoond|dhund|kitab dhoond|book kaise mile)\b/,answer:'🔎 Book dhoondne ke liye Books page open karein. Search box mein title, author ya description ka keyword likhein; category dropdown se subject filter karein aur Filter Books dabayein. Search suggestions mein title par click bhi kar sakte hain.'},
         {test:/\b(contact|rabta|message|support|help|complain|report problem)\b/,answer:'✉️ Website team se rabta karne ke liye Contact page open karein aur apna naam, email aur issue detail submit karein. Book issue report karte waqt title bhi likhein.'},
         {test:/\b(admin|administrator|admin panel)\b/,answer:'🛡 Admin Panel sirf authorized admin account ke liye hai. Admin books, users, categories, requests, reviews, messages, notifications aur student materials manage kar sakta hai.'},
         {test:/\b(student material|notes|lecture|assignment|upload material|resource)\b/,answer:'📑 Student Materials section mein available resources browse karein. Upload option enabled ho to material submit karein; admin approval ke baad publish ho sakta hai.'},
@@ -476,7 +477,7 @@ function getBotReply(message){
     }).filter(item => item.score > 0).sort((a, b) => b.score - a.score || String(a.book.title).localeCompare(String(b.book.title)));
 
     if (!scored.length) {
-        const websiteTerms = /\b(book|library|website|account|login|register|password|download|read|reader|pdf|epub|profile|bookmark|favorite|review|rating|request|category|admin|student|material|otp|email|contact|progress|history|kitab|parhna|masla|problem)\b/;
+        const websiteTerms = /\b(book|library|website|account|login|register|password|download|read|reader|pdf|epub|profile|bookmark|favorite|review|rating|request|category|search|filter|talash|dhoond|dhund|admin|student|material|otp|email|contact|progress|history|kitab|parhna|masla|problem)\b/;
         if (websiteTerms.test(text)) return {text:'🤝 Main Book’s Library website ke features aur catalogue ke bare mein guide karta hoon. Apna sawal thora detail se likhein, misal: “password reset kaise karun?” ya “PDF download nahi ho rahi”. Book ka exact title/author bhi likh sakte hain.'};
         return {text:'Main Book’s Library ka website assistant hoon, general-purpose ChatGPT nahi. Main sirf is library ke books, authors, categories, accounts, reading, downloads, bookmarks, reviews, requests aur website support ke sawalat mein madad karta hoon.'};
     }
