@@ -129,6 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title        = trim($_POST['title'] ?? '');
         $message_body = trim($_POST['message'] ?? '');
         if ($title === '' || $message_body === '') { done('❌ Title and message are required.', 'notifications'); }
+        if (mb_strlen($title) > 150 || mb_strlen($message_body) > 5000) {
+            done('❌ Title must be 150 characters or less and message 5,000 characters or less.', 'notifications');
+        }
+        if (($_POST['confirm_broadcast'] ?? '') !== 'yes') {
+            done('❌ Please confirm that you want to email this notification to all verified users.', 'notifications');
+        }
 
         if (db_exec($conn, "INSERT INTO notifications (title, message, created_at) VALUES (?, ?, NOW())", 'ss', [$title, $message_body]) === false) {
             done('❌ Could not save the notification.', 'notifications');
@@ -212,7 +218,21 @@ $userPages = max(1, (int)ceil($userTotal / $userPerPage));
 $userPage = min($userPage, $userPages);
 $userOffset = ($userPage - 1) * $userPerPage;
 $all_users = mysqli_query($conn, "SELECT * FROM users" . $userWhereSql . " ORDER BY id DESC LIMIT {$userPerPage} OFFSET {$userOffset}");
-$notifications = mysqli_query($conn, "SELECT * FROM notifications ORDER BY id DESC");
+// Notification history: searchable and paginated to keep the admin page responsive.
+$notificationSearch = trim((string)($_GET['notification_search'] ?? ''));
+$notificationPage = max(1, (int)($_GET['notification_page'] ?? 1));
+$notificationPerPage = 15;
+$notificationWhereSql = '';
+if ($notificationSearch !== '') {
+    $notificationTerm = mysqli_real_escape_string($conn, $notificationSearch);
+    $notificationWhereSql = " WHERE title LIKE '%{$notificationTerm}%' OR message LIKE '%{$notificationTerm}%'";
+}
+$notificationTotal = (int)db_value($conn, "SELECT COUNT(*) FROM notifications" . $notificationWhereSql, '', [], 0);
+$notificationPages = max(1, (int)ceil($notificationTotal / $notificationPerPage));
+$notificationPage = min($notificationPage, $notificationPages);
+$notificationOffset = ($notificationPage - 1) * $notificationPerPage;
+$notifications = mysqli_query($conn, "SELECT * FROM notifications" . $notificationWhereSql . " ORDER BY id DESC LIMIT {$notificationPerPage} OFFSET {$notificationOffset}");
+$verifiedRecipientCount = (int)db_value($conn, "SELECT COUNT(*) FROM users WHERE email <> '' AND is_verified=1", '', [], 0);
 $categories    = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DESC");
 
 $total_users      = (int)db_value($conn, "SELECT COUNT(*) FROM users", '', [], 0);
@@ -437,6 +457,42 @@ $book_requests = mysqli_query($conn,
         @media(max-width:640px) {
             .messages-filter-form { display:grid; grid-template-columns:1fr 1fr; }
             .messages-filter-form input[type="search"] { grid-column:1 / -1; min-width:0; }
+        }
+        .admin-notifications-section,.admin-notification-history { min-width:0; }
+        .notification-audience { display:flex; align-items:center; gap:13px; padding:15px 17px; margin-bottom:20px; border:1px solid #cfe4dc; border-radius:11px; background:#f0faf5; }
+        .notification-audience-icon { font-size:25px; }
+        .notification-audience strong { color:#14532d; font-size:16px; }
+        .notification-audience p,.notification-help,.notification-history-heading p { color:#64748b; font-size:13px; margin-top:4px; }
+        .notification-compose-form { display:flex; flex-direction:column; gap:9px; max-width:850px; margin-top:16px; }
+        .notification-compose-form label { font-size:13px; font-weight:700; color:#334155; }
+        .notification-compose-form input[type="text"],.notification-compose-form textarea { width:100%; margin:0; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
+        .notification-compose-form textarea { resize:vertical; min-height:130px; }
+        .notification-compose-form .notification-confirm { display:flex; align-items:flex-start; gap:9px; font-weight:500; margin:5px 0; }
+        .notification-compose-form .notification-confirm input { margin-top:3px; }
+        .notification-compose-form button { align-self:flex-start; min-height:42px; padding:10px 18px; }
+        .notification-history-heading { margin-bottom:14px; }
+        .notification-search-form { display:flex; flex-wrap:wrap; gap:9px; align-items:center; margin:12px 0 16px; }
+        .notification-search-form input[type="search"] { flex:1 1 260px; min-width:180px; margin:0; min-height:40px; }
+        .notification-reset { padding:9px 12px; text-decoration:none; font-weight:600; color:#24527a; }
+        .notification-table-wrap { width:100%; overflow-x:auto; }
+        .notification-table { min-width:780px; }
+        .notification-table td { vertical-align:top; }
+        .notification-message-cell { max-width:480px; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }
+        .notification-empty { text-align:center; padding:26px; color:#64748b; }
+        .notification-pagination { display:flex; flex-wrap:wrap; gap:6px; margin-top:15px; }
+        .notification-pagination a { min-width:34px; padding:7px 10px; border-radius:7px; text-align:center; text-decoration:none; background:#edf2f7; color:#1e293b; }
+        .notification-pagination a.current { background:#0b1f3a; color:#fff; }
+        body.dark-mode .notification-audience { background:#173326; border-color:#285b40; }
+        body.dark-mode .notification-audience strong { color:#bbf7d0; }
+        body.dark-mode .notification-audience p,body.dark-mode .notification-help,body.dark-mode .notification-history-heading p,body.dark-mode .notification-empty { color:#cbd5e1; }
+        body.dark-mode .notification-compose-form label { color:#e2e8f0; }
+        body.dark-mode .notification-reset { color:#9cc7ff; }
+        body.dark-mode .notification-pagination a { background:#263650; color:#f5f7fb; }
+        body.dark-mode .notification-pagination a.current { background:#4775aa; }
+        @media(max-width:640px) {
+            .notification-search-form { display:grid; grid-template-columns:1fr auto; }
+            .notification-search-form input[type="search"] { grid-column:1 / -1; min-width:0; }
+            .notification-compose-form button { width:100%; }
         }
     </style>
 </head>
@@ -717,24 +773,44 @@ $book_requests = mysqli_query($conn,
 
     <!-- ========== NOTIFICATIONS PAGE ========== -->
     <?php if($page == 'notifications'): ?>
-    <div class="table-section">
+    <div class="table-section admin-notifications-section">
+        <div class="notification-audience">
+            <span class="notification-audience-icon">👥</span>
+            <div><strong><?php echo number_format($verifiedRecipientCount); ?> verified email recipients</strong><p>Only verified users with an email address receive the email broadcast.</p></div>
+        </div>
         <h2>🔔 Send Notification</h2>
-        <p style="margin-bottom: 15px;">Notifications are saved to the library and emailed to verified users.</p>
-        <form method="POST" action="">
-<?php echo csrf_field(); ?>
-            <input type="text" name="title" placeholder="Notification Title" required style="width:100%; margin-bottom:10px;">
-            <textarea name="message" placeholder="Write notification..." rows="5" required style="width:100%; margin-bottom:10px;"></textarea>
-            <button type="submit" name="send_notification" class="green">📢 Send to All Users</button>
+        <p class="notification-help">The notification is saved in the library and emailed to the verified users counted above.</p>
+        <form method="POST" action="admin_dashboard.php?page=notifications" class="notification-compose-form" onsubmit="return confirm('Send this notification by email to <?php echo (int)$verifiedRecipientCount; ?> verified users? This action cannot be undone.');">
+            <?php echo csrf_field(); ?>
+            <label for="notification-title">Notification title</label>
+            <input id="notification-title" type="text" name="title" maxlength="150" placeholder="e.g. New books have been added" required>
+            <label for="notification-message">Message</label>
+            <textarea id="notification-message" name="message" maxlength="5000" rows="6" placeholder="Write a clear message for your library users..." required></textarea>
+            <label class="notification-confirm"><input type="checkbox" name="confirm_broadcast" value="yes" required> I understand this will email all verified users.</label>
+            <button type="submit" name="send_notification" value="1" class="green">📢 Send notification to verified users</button>
         </form>
     </div>
-    <div class="table-section">
-        <h2>📋 Sent Notifications</h2>
-        <table>
-            <tr><th>ID</th><th>Title</th><th>Message</th><th>Date</th></tr>
-            <?php while($notif = mysqli_fetch_assoc($notifications)){ ?>
-            <tr><td><?php echo $notif['id']; ?></td><td><?php echo htmlspecialchars($notif['title']); ?></td><td><?php echo htmlspecialchars($notif['message']); ?></td><td><?php echo $notif['created_at']; ?></td></tr>
-            <?php } ?>
+    <div class="table-section admin-notification-history">
+        <div class="notification-history-heading"><div><h2>📋 Notification History</h2><p><?php echo number_format($notificationTotal); ?> saved notifications</p></div></div>
+        <form method="GET" action="admin_dashboard.php" class="notification-search-form">
+            <input type="hidden" name="page" value="notifications">
+            <input type="search" name="notification_search" value="<?php echo e($notificationSearch); ?>" placeholder="Search notification title or message..." aria-label="Search notification history">
+            <button type="submit" class="green">Search</button>
+            <a href="admin_dashboard.php?page=notifications" class="notification-reset">Reset</a>
+        </form>
+        <div class="notification-table-wrap">
+        <table class="notification-table">
+            <thead><tr><th>ID</th><th>Title</th><th>Message</th><th>Date</th></tr></thead>
+            <tbody>
+            <?php if ($notifications && mysqli_num_rows($notifications) > 0): while($notif = mysqli_fetch_assoc($notifications)){ ?>
+            <tr><td><?php echo (int)$notif['id']; ?></td><td><strong><?php echo e($notif['title'] ?? ''); ?></strong></td><td class="notification-message-cell"><?php echo nl2br(e($notif['message'] ?? '')); ?></td><td><?php echo e($notif['created_at'] ?? ''); ?></td></tr>
+            <?php } else: ?><tr><td colspan="4" class="notification-empty">No notifications found.</td></tr><?php endif; ?>
+            </tbody>
         </table>
+        </div>
+        <?php if ($notificationPages > 1): ?><nav class="notification-pagination" aria-label="Notification history pages">
+            <?php for($p=1; $p<=$notificationPages; $p++): ?><a class="<?php echo $p === $notificationPage ? 'current' : ''; ?>" href="?page=notifications&amp;notification_search=<?php echo rawurlencode($notificationSearch); ?>&amp;notification_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?>
+        </nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
