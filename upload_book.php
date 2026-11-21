@@ -26,10 +26,14 @@ if (isset($_POST['upload'])) {
     $multi = isset($_FILES['pdfs']) && is_array($_FILES['pdfs']['name'] ?? null)
         && count(array_filter($_FILES['pdfs']['name'], static fn($n) => $n !== '')) > 0;
     $files = [];
+    $selectedPdfCount = $multi ? count(array_filter($_FILES['pdfs']['name'], static fn($n) => $n !== '')) : (isset($_FILES['pdf']) && ($_FILES['pdf']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE ? 1 : 0);
 
-    if ($author === '') {
+    // Keep shared-hosting uploads within a predictable request size and execution time.
+    if ($selectedPdfCount > 10) {
+        $error = 'You can upload a maximum of 10 PDF books at a time.';
+    } elseif ($author === '') {
         $error = 'Author is required.';
-    } elseif (!$multi && $title === '') {
+    } elseif (!$multi && $title === '' && $selectedPdfCount > 0) {
         $error = 'Title is required for a single PDF upload.';
     } else {
         if ($multi) {
@@ -138,7 +142,7 @@ if (isset($_POST['upload'])) {
         <textarea name="description" placeholder="Description" rows="4"></textarea>
         <label>One PDF (max <?php echo e($maxPdfMiB); ?> MiB each)</label>
         <input type="file" name="pdf" accept="application/pdf">
-        <label>Or select multiple PDFs (max <?php echo e($maxPdfMiB); ?> MiB each)</label>
+        <label>Or select multiple PDFs (maximum 10 files, <?php echo e($maxPdfMiB); ?> MiB each)</label>
         <input type="file" name="pdfs[]" accept="application/pdf" multiple>
         <label>Optional shared cover image (jpg/png/webp, max 3 MB)</label>
         <input type="file" name="cover" accept="image/jpeg,image/png,image/webp">
