@@ -509,7 +509,7 @@ $book_requests = mysqli_query($conn,
     <div class="table-section">
         <h2>💬 User Messages</h2>
         <table>
-            <tr><th>ID</th><th>Name</th><th>Email</th><th>Message</th><th>Reply</th><th>Action</th></tr>
+            <tr><th>ID</th><th>Name</th><th>Email</th><th>Message</th><th>Reply</th><th>Status</th><th>Action</th></tr>
             <?php while($row = mysqli_fetch_assoc($messages)){ ?>
                 <tr>
                     <td><?php echo $row['id']; ?></td>
@@ -523,8 +523,9 @@ $book_requests = mysqli_query($conn,
                             <input type="text" name="reply" value="<?php echo htmlspecialchars($row['reply'] ?? ''); ?>" placeholder="Type reply..." style="width:100%">
                         </form>
                     </td>
+                    <td><?php if (trim((string)($row['reply'] ?? '')) !== ''): ?><span class="badge-admin">Replied</span><?php else: ?><span style="color:#b7791f;font-weight:600;">Pending</span><?php endif; ?></td>
                     <td class="action-buttons">
-                        <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="reply_submit" class="green">Reply</button>
+                        <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="reply_submit" class="green">Reply / Update</button>
                         <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="delete_message" value="<?php echo (int)$row['id']; ?>" class="red" formnovalidate onclick="return confirm('Delete this message?')">Delete</button>
                     </td>
                 </tr>
