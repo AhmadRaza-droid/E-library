@@ -5,7 +5,6 @@ require_admin($conn);
 
 $perPage = 50;
 $pageNo = max(1, (int)($_GET['p'] ?? 1));
-$offset = ($pageNo - 1) * $perPage;
 $filter = trim((string)($_GET['q'] ?? ''));
 $type = (string)($_GET['type'] ?? '');
 $from = trim((string)($_GET['from'] ?? ''));
@@ -17,8 +16,10 @@ if($from!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$from)){$where[]='created_at>=
 if($to!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$to)){$where[]='created_at<=?';$types.='s';$params[]=$to.' 23:59:59';}
 $sqlWhere=$where?' WHERE '.implode(' AND ',$where):'';
 $total=(int)db_value($conn,'SELECT COUNT(*) FROM website_activity_logs'.$sqlWhere,$types,$params,0);
-$rows=db_all($conn,'SELECT * FROM website_activity_logs'.$sqlWhere.' ORDER BY id DESC LIMIT '.(int)$perPage.' OFFSET '.(int)$offset,$types,$params);
 $pages=max(1,(int)ceil($total/$perPage));
+$pageNo=min($pageNo,$pages);
+$offset=($pageNo-1)*$perPage;
+$rows=db_all($conn,'SELECT * FROM website_activity_logs'.$sqlWhere.' ORDER BY id DESC LIMIT '.(int)$perPage.' OFFSET '.(int)$offset,$types,$params);
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>User Activity - E-Library</title><link rel="stylesheet" href="style.css?v=8000">
 <style>
