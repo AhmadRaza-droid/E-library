@@ -576,7 +576,7 @@ $book_requests = mysqli_query($conn,
             <?php if ($all_users && mysqli_num_rows($all_users) > 0): while($user = mysqli_fetch_assoc($all_users)){ ?>
             <tr>
                 <td><?php echo (int)$user['id']; ?></td>
-                <td><?php echo !empty($user['profile_image']) ? '<img src="'.e($user['profile_image']).'" width="40" height="40" alt="Profile" style="border-radius:50%;object-fit:cover;">' : '👤'; ?></td>
+                <td><?php echo !empty($user['profile_image']) ? '<img src="'.e($user['profile_image']).'" width="40" height="40" alt="Profile" onerror="this.replaceWith(document.createTextNode(\'👤\'))" style="border-radius:50%;object-fit:cover;">' : '👤'; ?></td>
                 <td><?php echo e($user['fullname'] ?? ''); ?></td>
                 <td><?php echo e($user['email'] ?? ''); ?></td>
                 <td><?php if(isset($user['is_admin']) && (int)$user['is_admin'] === 1){ ?><span class="badge-admin">👑 Admin</span><?php } else { ?>User<?php } ?></td>
