@@ -76,7 +76,11 @@ if(isset($_GET['action']) && $_GET['action'] == 'backup'){
 // ---------- Restore Backup (POST + CSRF + only statements a backup file can contain) ----------
 if(isset($_POST['restore'])){
     $file = $_FILES['backup_file']['tmp_name'] ?? '';
-    $ok_upload = $file !== '' && is_uploaded_file($file)
+    $original_name = (string)($_FILES['backup_file']['name'] ?? '');
+    $ok_upload = $file !== ''
+              && (($_FILES['backup_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK)
+              && is_uploaded_file($file)
+              && strtolower(pathinfo($original_name, PATHINFO_EXTENSION)) === 'sql'
               && ($_FILES['backup_file']['size'] ?? 0) > 0
               && ($_FILES['backup_file']['size'] ?? 0) <= 20 * 1024 * 1024;
     if(!$ok_upload){
@@ -157,7 +161,7 @@ if(isset($_POST['restore'])){
             <input type="file" name="backup_file" accept=".sql" required>
             <button type="submit" name="restore" class="green">🔄 Restore Database</button>
         </form>
-        <p style="font-size:12px;color:#dc3545;margin-top:10px;">⚠️ This can overwrite existing data. A failed restore can leave partial changes; keep a separate backup.</p>
+        <p style="font-size:12px;color:#dc3545;margin-top:10px;">⚠️ Restore overwrites existing tables. Download a fresh backup first. MySQL table changes cannot be rolled back automatically if the server fails mid-restore.</p>
     </div>
 </div>
 
