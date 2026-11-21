@@ -408,7 +408,14 @@ function getBotReply(message){
         romance: ['romance','love story'], programming: ['programming','coding','computer','software','python','java'],
         islamic: ['islamic','islam'], urdu: ['urdu']
     };
-    const stop = new Set(['the','and','for','with','about','tell','what','which','who','can','you','please','find','show','some','give','book','books','author','writer','mujhe','mujhay','koi','kisi','batao','batain','bata','hai','hain','kya','wala','wali','chahiye','par','aur','kay','mein','mere','mera','kiye','ki','ka','ke','ko','se','say','karo','chahye','kitab','kitaben','kitaab','suggest','recommend','recommendation','dikhao','do','hain']);
+    // Add every real category found in the current catalogue, not only hard-coded examples.
+    for (const book of bookData) {
+        const actualCategory = String(book.category || '').trim().toLocaleLowerCase();
+        if (actualCategory && !categories[actualCategory]) {
+            categories[actualCategory] = [actualCategory];
+        }
+    }
+    const stop = new Set(['the','and','for','with','about','tell','what','which','who','can','you','please','find','show','some','give','book','books','author','writer','mujhe','mujhay','koi','kisi','batao','batain','bata','hai','hain','kya','wala','wali','chahiye','par','aur','kay','mein','mere','mera','kiye','ki','ka','ke','ko','se','say','karo','chahye','kitab','kitaben','kitaab','suggest','recommend','recommendation','dikhao','do','hain','search','looking','want','need','available','library','mein','mila','milay','milti','related']);
     const words = (text.match(/[\p{L}\p{N}]+/gu) || []).filter(word => word.length > 1 && !stop.has(word));
     const wantsBooks = /\b(book|books|kitab|kitaben|kitaab|recommend|suggest|novel)\b/.test(text);
     if (wantsBooks && words.length === 0) {
