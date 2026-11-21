@@ -168,7 +168,27 @@ $valid_pages = ['dashboard', 'add_book', 'categories', 'website', 'all_books', '
 $page = (isset($_GET['page']) && in_array($_GET['page'], $valid_pages, true)) ? $_GET['page'] : 'dashboard';
 
 $books         = mysqli_query($conn, "SELECT * FROM books ORDER BY id DESC");
-$messages      = mysqli_query($conn, "SELECT * FROM messages ORDER BY id DESC");
+// Messages inbox: searchable, status-filtered and paginated.
+$messageSearch = trim((string)($_GET['message_search'] ?? ''));
+$messageStatus = (string)($_GET['message_status'] ?? 'all');
+$messagePage = max(1, (int)($_GET['message_page'] ?? 1));
+$messagePerPage = 20;
+$messageWhere = [];
+if ($messageSearch !== '') {
+    $messageTerm = mysqli_real_escape_string($conn, $messageSearch);
+    $messageWhere[] = "(name LIKE '%{$messageTerm}%' OR email LIKE '%{$messageTerm}%' OR message LIKE '%{$messageTerm}%')";
+}
+if ($messageStatus === 'pending') $messageWhere[] = "(reply IS NULL OR TRIM(reply)='')";
+elseif ($messageStatus === 'replied') $messageWhere[] = "(reply IS NOT NULL AND TRIM(reply)<>'')";
+else $messageStatus = 'all';
+$messageWhereSql = $messageWhere ? ' WHERE ' . implode(' AND ', $messageWhere) : '';
+$messageTotal = (int)db_value($conn, "SELECT COUNT(*) FROM messages" . $messageWhereSql, '', [], 0);
+$messagePages = max(1, (int)ceil($messageTotal / $messagePerPage));
+$messagePage = min($messagePage, $messagePages);
+$messageOffset = ($messagePage - 1) * $messagePerPage;
+$messages = mysqli_query($conn, "SELECT * FROM messages" . $messageWhereSql . " ORDER BY id DESC LIMIT {$messagePerPage} OFFSET {$messageOffset}");
+$messagePending = (int)db_value($conn, "SELECT COUNT(*) FROM messages WHERE reply IS NULL OR TRIM(reply)=''", '', [], 0);
+$messageReplied = (int)db_value($conn, "SELECT COUNT(*) FROM messages WHERE reply IS NOT NULL AND TRIM(reply)<>''", '', [], 0);
 // User management: searchable, filterable and paginated (25 users per page).
 $userSearch = trim((string)($_GET['user_search'] ?? ''));
 $userRole = (string)($_GET['user_role'] ?? 'all');
@@ -380,6 +400,43 @@ $book_requests = mysqli_query($conn,
             .users-filter-form { display:grid; grid-template-columns:1fr 1fr; }
             .users-filter-form input[type="search"] { grid-column:1 / -1; min-width:0; }
             .users-filter-form button { min-height:40px; }
+        }
+        .admin-messages-section { min-width:0; }
+        .messages-overview { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:12px; margin-bottom:18px; }
+        .message-stat { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border:1px solid #dbe5e1; border-radius:10px; background:#f8fbfa; }
+        .message-stat strong { font-size:24px; color:#0b1f3a; }
+        .message-stat span { color:#64748b; font-size:13px; }
+        .messages-filter-form { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0 18px; }
+        .messages-filter-form input[type="search"] { flex:2 1 250px; min-width:180px; }
+        .messages-filter-form select { flex:1 1 160px; min-width:140px; }
+        .messages-filter-form input,.messages-filter-form select { min-height:40px; margin:0; }
+        .messages-reset { padding:9px 12px; text-decoration:none; font-weight:600; color:#24527a; }
+        .messages-table-wrap { width:100%; overflow-x:auto; }
+        .messages-table { min-width:1050px; }
+        .messages-table th,.messages-table td { vertical-align:top; }
+        .messages-table td { padding:12px; }
+        .message-body-cell { max-width:280px; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }
+        .message-reply-cell { min-width:260px; }
+        .message-reply-cell textarea { width:100%; min-height:78px; resize:vertical; }
+        .message-status { display:inline-block; padding:5px 10px; border-radius:20px; font-size:12px; font-weight:700; white-space:nowrap; }
+        .message-status.pending { background:#fff3cd; color:#8a5b00; }
+        .message-status.replied { background:#dcfce7; color:#166534; }
+        .message-actions { min-width:145px; display:flex; flex-direction:column; gap:8px; }
+        .message-actions form { margin:0; }
+        .message-actions button { width:100%; }
+        .messages-empty { padding:28px; text-align:center; color:#64748b; }
+        .messages-pagination { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
+        .messages-pagination a { min-width:34px; padding:7px 10px; border-radius:7px; text-align:center; text-decoration:none; background:#edf2f7; color:#1e293b; }
+        .messages-pagination a.current { background:#0b1f3a; color:#fff; }
+        body.dark-mode .message-stat { background:#1e293b; border-color:#334155; }
+        body.dark-mode .message-stat strong { color:#f8fafc; }
+        body.dark-mode .message-stat span,body.dark-mode .messages-empty { color:#cbd5e1; }
+        body.dark-mode .messages-reset { color:#9cc7ff; }
+        body.dark-mode .messages-pagination a { background:#263650; color:#f5f7fb; }
+        body.dark-mode .messages-pagination a.current { background:#4775aa; }
+        @media(max-width:640px) {
+            .messages-filter-form { display:grid; grid-template-columns:1fr 1fr; }
+            .messages-filter-form input[type="search"] { grid-column:1 / -1; min-width:0; }
         }
     </style>
 </head>
@@ -605,31 +662,56 @@ $book_requests = mysqli_query($conn,
 
     <!-- ========== MESSAGES PAGE ========== -->
     <?php if($page == 'messages'): ?>
-    <div class="table-section">
-        <h2>💬 User Messages</h2>
-        <table>
-            <tr><th>ID</th><th>Name</th><th>Email</th><th>Message</th><th>Reply</th><th>Status</th><th>Action</th></tr>
-            <?php while($row = mysqli_fetch_assoc($messages)){ ?>
+    <div class="table-section admin-messages-section">
+        <div class="messages-overview">
+            <div class="message-stat"><strong><?php echo $messageTotal; ?></strong><span>Matching messages</span></div>
+            <div class="message-stat"><strong><?php echo $messagePending; ?></strong><span>Pending replies</span></div>
+            <div class="message-stat"><strong><?php echo $messageReplied; ?></strong><span>Replied</span></div>
+        </div>
+        <form method="GET" action="admin_dashboard.php" class="messages-filter-form">
+            <input type="hidden" name="page" value="messages">
+            <input type="search" name="message_search" value="<?php echo e($messageSearch); ?>" placeholder="Search name, email or message..." aria-label="Search messages">
+            <select name="message_status" aria-label="Filter message status">
+                <option value="all" <?php echo $messageStatus === 'all' ? 'selected' : ''; ?>>All messages</option>
+                <option value="pending" <?php echo $messageStatus === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                <option value="replied" <?php echo $messageStatus === 'replied' ? 'selected' : ''; ?>>Replied</option>
+            </select>
+            <button type="submit" class="green">Search / Filter</button>
+            <a href="admin_dashboard.php?page=messages" class="messages-reset">Reset</a>
+        </form>
+        <div class="messages-table-wrap">
+        <table class="messages-table">
+            <thead><tr><th>ID</th><th>Sender</th><th>Message</th><th>Admin Reply</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            <?php if ($messages && mysqli_num_rows($messages) > 0): while($row = mysqli_fetch_assoc($messages)){ ?>
                 <tr>
-                    <td><?php echo $row['id']; ?></td>
-                    <td><?php echo htmlspecialchars($row['name']); ?></td>
-                    <td><?php echo htmlspecialchars($row['email']); ?></td>
-                    <td><?php echo htmlspecialchars($row['message']); ?></td>
-                    <td width="250">
-                        <form id="message-<?php echo (int)$row['id']; ?>" method="POST" action="">
+                    <td><?php echo (int)$row['id']; ?></td>
+                    <td><strong><?php echo e($row['name'] ?? ''); ?></strong><br><a href="mailto:<?php echo e($row['email'] ?? ''); ?>"><?php echo e($row['email'] ?? ''); ?></a></td>
+                    <td class="message-body-cell"><?php echo nl2br(e($row['message'] ?? '')); ?></td>
+                    <td class="message-reply-cell">
+                        <form id="message-<?php echo (int)$row['id']; ?>" method="POST" action="admin_dashboard.php?page=messages">
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="message_id" value="<?php echo (int)$row['id']; ?>">
-                            <input type="text" name="reply" value="<?php echo htmlspecialchars($row['reply'] ?? ''); ?>" placeholder="Type reply..." style="width:100%">
+                            <textarea name="reply" rows="3" maxlength="5000" placeholder="Write a helpful reply..." required><?php echo e($row['reply'] ?? ''); ?></textarea>
                         </form>
                     </td>
-                    <td><?php if (trim((string)($row['reply'] ?? '')) !== ''): ?><span class="badge-admin">Replied</span><?php else: ?><span style="color:#b7791f;font-weight:600;">Pending</span><?php endif; ?></td>
-                    <td class="action-buttons">
-                        <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="reply_submit" class="green">Reply / Update</button>
-                        <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="delete_message" value="<?php echo (int)$row['id']; ?>" class="red" formnovalidate onclick="return confirm('Delete this message?')">Delete</button>
+                    <td><?php if (trim((string)($row['reply'] ?? '')) !== ''): ?><span class="message-status replied">Replied</span><?php else: ?><span class="message-status pending">Pending</span><?php endif; ?></td>
+                    <td class="message-actions">
+                        <button type="submit" form="message-<?php echo (int)$row['id']; ?>" name="reply_submit" value="1" class="green">Reply / Update</button>
+                        <form method="POST" action="admin_dashboard.php?page=messages" onsubmit="return confirm('Permanently delete this message?')">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="delete_message" value="<?php echo (int)$row['id']; ?>">
+                            <button type="submit" class="red">Delete</button>
+                        </form>
                     </td>
                 </tr>
-            <?php } ?>
+            <?php } else: ?><tr><td colspan="6" class="messages-empty">No messages found. Try changing your search or filter.</td></tr><?php endif; ?>
+            </tbody>
         </table>
+        </div>
+        <?php if ($messagePages > 1): ?><nav class="messages-pagination" aria-label="Message pages">
+            <?php for($p = 1; $p <= $messagePages; $p++): ?><a class="<?php echo $p === $messagePage ? 'current' : ''; ?>" href="?page=messages&amp;message_search=<?php echo rawurlencode($messageSearch); ?>&amp;message_status=<?php echo e($messageStatus); ?>&amp;message_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?>
+        </nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
