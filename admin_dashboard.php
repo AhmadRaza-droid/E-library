@@ -230,7 +230,7 @@ $userTotal = (int)db_value($conn, "SELECT COUNT(*) FROM users" . $userWhereSql, 
 $userPages = max(1, (int)ceil($userTotal / $userPerPage));
 $userPage = min($userPage, $userPages);
 $userOffset = ($userPage - 1) * $userPerPage;
-$all_users = mysqli_query($conn, "SELECT * FROM users" . $userWhereSql . " ORDER BY id DESC LIMIT {$userPerPage} OFFSET {$userOffset}");
+$all_users = mysqli_query($conn, "SELECT id, fullname, email, profile_image, is_admin, is_verified FROM users" . $userWhereSql . " ORDER BY id DESC LIMIT {$userPerPage} OFFSET {$userOffset}");
 // Notification history: searchable and paginated to keep the admin page responsive.
 $notificationSearch = trim((string)($_GET['notification_search'] ?? ''));
 $notificationPage = max(1, (int)($_GET['notification_page'] ?? 1));
