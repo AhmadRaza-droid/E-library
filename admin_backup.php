@@ -91,7 +91,31 @@ if(isset($_POST['restore'])){
     if (!$stmts) {
         js_alert_redirect('❌ Restore refused: the backup is empty.', 'admin_backup.php');
     }
-    $allowed = '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO|SET FOREIGN_KEY_CHECKS)\b/i';
+    // Preflight the entire file before executing any destructive statement.
+    // Generated backups contain one DROP + CREATE per table, followed by INSERT rows.
+    $allowed = '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO|SET FOREIGN_KEY_CHECKS)\\b/i';
+    $droppedTables = [];
+    $createdTables = [];
+    $invalidBackup = false;
+    foreach ($stmts as $s) {
+        if (!preg_match($allowed, $s)) {
+            $invalidBackup = true;
+            break;
+        }
+        if (preg_match('/^DROP TABLE IF EXISTS\\s+`([A-Za-z0-9_]+)`$/i', $s, $match)) {
+            $droppedTables[$match[1]] = true;
+        } elseif (preg_match('/^CREATE TABLE\\s+`([A-Za-z0-9_]+)`\\s*\\(/i', $s, $match)) {
+            $createdTables[$match[1]] = true;
+        } elseif (preg_match('/^INSERT INTO\\s+`([A-Za-z0-9_]+)`\\s+VALUES\\s*\\(/i', $s, $match)) {
+            if (!isset($createdTables[$match[1]])) $invalidBackup = true;
+        } elseif (!preg_match('/^SET FOREIGN_KEY_CHECKS\\s*=\\s*[01]$/i', $s)) {
+            $invalidBackup = true;
+        }
+    }
+    if (!$createdTables || array_diff_key($createdTables, $droppedTables)
+        || array_diff_key($droppedTables, $createdTables) || $invalidBackup) {
+        js_alert_redirect('❌ Restore refused: the SQL file is incomplete, malformed, or does not match a generated database backup.', 'admin_backup.php');
+    }
     foreach($stmts as $s){
         if(!preg_match($allowed, $s)){
             js_alert_redirect('❌ Restore refused: the file contains statements that a backup should not have.', 'admin_backup.php');
