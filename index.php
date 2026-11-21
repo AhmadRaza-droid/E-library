@@ -361,7 +361,7 @@ function addChatMessage(cssClass, content){
     return div;
 }
 
-function sendMessage(event){
+async function sendMessage(event){
     if (event) event.preventDefault();
     const input = document.getElementById('userInput');
     const message = input.value.trim();
@@ -370,6 +370,28 @@ function sendMessage(event){
     input.value = '';
     try {
         const reply = getBotReply(message);
+        // Search the complete database when the local preview has matches or
+        // the local assistant could not identify a specific book request.
+        const needsCatalogueSearch = Boolean(reply.books) ||
+            reply.text.startsWith('Main Book’s Library ka website assistant') ||
+            reply.text.startsWith('🤝 Main Book’s Library website');
+        if (needsCatalogueSearch) {
+            try {
+                const response = await fetch('chatbot_search.php?q=' + encodeURIComponent(message), {
+                    headers: {'Accept': 'application/json'},
+                    credentials: 'same-origin'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.ok && Array.isArray(data.books) && data.books.length) {
+                        reply.books = data.books;
+                        reply.text = '📚 Aapki poori library se matching books:';
+                    }
+                }
+            } catch (searchError) {
+                // Keep the existing local FAQ/catalogue response if search is unavailable.
+            }
+        }
         const div = addChatMessage('bot-message', reply.text);
         if (reply.books) {
             reply.books.forEach(book => {
