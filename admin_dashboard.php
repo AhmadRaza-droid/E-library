@@ -252,11 +252,50 @@ $most_favorites  = mysqli_query($conn,
  ORDER BY total DESC
  LIMIT 5");
 
-$book_requests = mysqli_query($conn,
-"SELECT book_requests.*, users.fullname, users.email
- FROM book_requests
- JOIN users ON book_requests.user_id = users.id
- ORDER BY book_requests.id DESC");
+// Book requests: search, status filters and pagination.
+$requestSearch = trim((string)($_GET['request_search'] ?? ''));
+$requestStatus = (string)($_GET['request_status'] ?? 'all');
+$requestPage = max(1, (int)($_GET['request_page'] ?? 1));
+$requestPerPage = 20;
+$requestWhere = [];
+if ($requestSearch !== '') {
+    $requestTerm = mysqli_real_escape_string($conn, $requestSearch);
+    $requestWhere[] = "(users.fullname LIKE '%{$requestTerm}%' OR users.email LIKE '%{$requestTerm}%' OR book_requests.book_name LIKE '%{$requestTerm}%' OR book_requests.category LIKE '%{$requestTerm}%')";
+}
+$allowedRequestStatuses = ['Pending', 'Approved', 'Added', 'Rejected'];
+if (in_array($requestStatus, $allowedRequestStatuses, true)) {
+    $requestWhere[] = "book_requests.status='" . mysqli_real_escape_string($conn, $requestStatus) . "'";
+} else $requestStatus = 'all';
+$requestWhereSql = $requestWhere ? ' WHERE ' . implode(' AND ', $requestWhere) : '';
+$requestBaseSql = " FROM book_requests JOIN users ON book_requests.user_id = users.id";
+$requestTotal = (int)db_value($conn, "SELECT COUNT(*)" . $requestBaseSql . $requestWhereSql, '', [], 0);
+$requestPages = max(1, (int)ceil($requestTotal / $requestPerPage));
+$requestPage = min($requestPage, $requestPages);
+$requestOffset = ($requestPage - 1) * $requestPerPage;
+$book_requests = mysqli_query($conn, "SELECT book_requests.*, users.fullname, users.email" . $requestBaseSql . $requestWhereSql . " ORDER BY book_requests.id DESC LIMIT {$requestPerPage} OFFSET {$requestOffset}");
+$requestPending = (int)db_value($conn, "SELECT COUNT(*) FROM book_requests WHERE status='Pending'", '', [], 0);
+$requestApproved = (int)db_value($conn, "SELECT COUNT(*) FROM book_requests WHERE status='Approved'", '', [], 0);
+$requestAdded = (int)db_value($conn, "SELECT COUNT(*) FROM book_requests WHERE status='Added'", '', [], 0);
+
+// Reviews: search, rating filter and pagination.
+$reviewSearch = trim((string)($_GET['review_search'] ?? ''));
+$reviewRating = (string)($_GET['review_rating'] ?? 'all');
+$reviewPage = max(1, (int)($_GET['review_page'] ?? 1));
+$reviewPerPage = 20;
+$reviewWhere = [];
+if ($reviewSearch !== '') {
+    $reviewTerm = mysqli_real_escape_string($conn, $reviewSearch);
+    $reviewWhere[] = "(users.fullname LIKE '%{$reviewTerm}%' OR books.title LIKE '%{$reviewTerm}%' OR reviews.review LIKE '%{$reviewTerm}%')";
+}
+if (in_array($reviewRating, ['1','2','3','4','5'], true)) $reviewWhere[] = "reviews.rating=" . (int)$reviewRating;
+else $reviewRating = 'all';
+$reviewWhereSql = $reviewWhere ? ' WHERE ' . implode(' AND ', $reviewWhere) : '';
+$reviewBaseSql = " FROM reviews JOIN users ON reviews.user_id = users.id JOIN books ON reviews.book_id = books.id";
+$reviewTotal = (int)db_value($conn, "SELECT COUNT(*)" . $reviewBaseSql . $reviewWhereSql, '', [], 0);
+$reviewPages = max(1, (int)ceil($reviewTotal / $reviewPerPage));
+$reviewPage = min($reviewPage, $reviewPages);
+$reviewOffset = ($reviewPage - 1) * $reviewPerPage;
+$reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" . $reviewBaseSql . $reviewWhereSql . " ORDER BY reviews.id DESC LIMIT {$reviewPerPage} OFFSET {$reviewOffset}");
 ?>
 <!DOCTYPE html>
 <html>
@@ -493,6 +532,38 @@ $book_requests = mysqli_query($conn,
             .notification-search-form { display:grid; grid-template-columns:1fr auto; }
             .notification-search-form input[type="search"] { grid-column:1 / -1; min-width:0; }
             .notification-compose-form button { width:100%; }
+        }
+        .admin-requests-section,.admin-reviews-section { min-width:0; }
+        .request-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
+        .request-stats>div,.review-summary { display:flex; flex-direction:column; gap:3px; padding:13px 15px; border:1px solid #dbe5e1; border-radius:9px; background:#f8fbfa; }
+        .request-stats strong,.review-summary strong { font-size:23px; color:#0b1f3a; }
+        .request-stats span,.review-summary span { color:#64748b; font-size:13px; }
+        .request-filter-form,.review-filter-form { display:flex; flex-wrap:wrap; gap:9px; align-items:center; margin:14px 0 17px; }
+        .request-filter-form input[type=search],.review-filter-form input[type=search] { flex:2 1 250px; min-width:180px; }
+        .request-filter-form select,.review-filter-form select { flex:1 1 150px; min-width:130px; }
+        .request-filter-form input,.request-filter-form select,.review-filter-form input,.review-filter-form select { margin:0; min-height:40px; }
+        .admin-filter-reset { padding:9px 12px; text-decoration:none; font-weight:600; color:#24527a; }
+        .admin-wide-table { width:100%; overflow-x:auto; }
+        .admin-requests-table { min-width:900px; }
+        .admin-reviews-table { min-width:850px; }
+        .admin-wide-table th,.admin-wide-table td { vertical-align:top; }
+        .admin-wide-table td { padding:11px; }
+        .admin-wide-table select { min-width:120px; }
+        .review-text-cell { max-width:440px; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }
+        .review-stars { white-space:nowrap; font-weight:700; }
+        .admin-empty { padding:26px; text-align:center; color:#64748b; }
+        .admin-pagination { display:flex; flex-wrap:wrap; gap:6px; margin-top:15px; }
+        .admin-pagination a { min-width:34px; padding:7px 10px; border-radius:7px; text-align:center; text-decoration:none; background:#edf2f7; color:#1e293b; }
+        .admin-pagination a.current { background:#0b1f3a; color:#fff; }
+        body.dark-mode .request-stats>div,body.dark-mode .review-summary { background:#1e293b; border-color:#334155; }
+        body.dark-mode .request-stats strong,body.dark-mode .review-summary strong { color:#f8fafc; }
+        body.dark-mode .request-stats span,body.dark-mode .review-summary span,body.dark-mode .admin-empty { color:#cbd5e1; }
+        body.dark-mode .admin-filter-reset { color:#9cc7ff; }
+        body.dark-mode .admin-pagination a { background:#263650; color:#f5f7fb; }
+        body.dark-mode .admin-pagination a.current { background:#4775aa; }
+        @media(max-width:640px) {
+            .request-filter-form,.review-filter-form { display:grid; grid-template-columns:1fr 1fr; }
+            .request-filter-form input[type=search],.review-filter-form input[type=search] { grid-column:1 / -1; min-width:0; }
         }
     </style>
 </head>
@@ -824,56 +895,74 @@ $book_requests = mysqli_query($conn,
 
     <!-- ========== BOOK REQUESTS PAGE ========== -->
     <?php if($page == 'book_requests'): ?>
-    <div class="table-section">
-        <h2>📝 Book Requests</h2>
-        <table>
-            <tr><th>ID</th><th>User</th><th>Email</th><th>Book</th><th>Category</th><th>Status</th><th>Action</th></tr>
-            <?php while($req = mysqli_fetch_assoc($book_requests)){ ?>
+    <div class="table-section admin-requests-section">
+        <div class="request-stats">
+            <div><strong><?php echo number_format($requestTotal); ?></strong><span>Matching requests</span></div>
+            <div><strong><?php echo number_format($requestPending); ?></strong><span>Pending</span></div>
+            <div><strong><?php echo number_format($requestApproved); ?></strong><span>Approved</span></div>
+            <div><strong><?php echo number_format($requestAdded); ?></strong><span>Added</span></div>
+        </div>
+        <form method="GET" action="admin_dashboard.php" class="request-filter-form">
+            <input type="hidden" name="page" value="book_requests">
+            <input type="search" name="request_search" value="<?php echo e($requestSearch); ?>" placeholder="Search user, email, book or category...">
+            <select name="request_status">
+                <option value="all" <?php echo $requestStatus==='all'?'selected':''; ?>>All statuses</option>
+                <?php foreach($allowedRequestStatuses as $st): ?><option value="<?php echo e($st); ?>" <?php echo $requestStatus===$st?'selected':''; ?>><?php echo e($st); ?></option><?php endforeach; ?>
+            </select>
+            <button type="submit" class="green">Search / Filter</button>
+            <a href="admin_dashboard.php?page=book_requests" class="admin-filter-reset">Reset</a>
+        </form>
+        <div class="admin-wide-table"><table class="admin-requests-table">
+            <thead><tr><th>ID</th><th>User</th><th>Email</th><th>Book</th><th>Category</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+            <?php if($book_requests && mysqli_num_rows($book_requests)>0): while($req = mysqli_fetch_assoc($book_requests)){ ?>
                 <tr>
-                    <td><?php echo $req['id']; ?></td>
-                    <td><?php echo htmlspecialchars($req['fullname']); ?></td>
-                    <td><?php echo htmlspecialchars($req['email']); ?></td>
-                    <td><?php echo htmlspecialchars($req['book_name']); ?></td>
-                    <td><?php echo htmlspecialchars($req['category']); ?></td>
-                    <td>
-                        <form id="request-<?php echo (int)$req['id']; ?>" method="POST" action="update_request_status.php">
-                            <?php echo csrf_field(); ?>
-                            <input type="hidden" name="request_id" value="<?php echo (int)$req['id']; ?>">
-                        <select name="status">
-                            <option <?php echo $req['status']=='Pending'?'selected':''; ?>>Pending</option>
-                            <option <?php echo $req['status']=='Approved'?'selected':''; ?>>Approved</option>
-                            <option <?php echo $req['status']=='Added'?'selected':''; ?>>Added</option>
-                            <option <?php echo $req['status']=='Rejected'?'selected':''; ?>>Rejected</option>
+                    <td><?php echo (int)$req['id']; ?></td><td><?php echo e($req['fullname'] ?? ''); ?></td><td><?php echo e($req['email'] ?? ''); ?></td>
+                    <td><?php echo e($req['book_name'] ?? ''); ?></td><td><?php echo e($req['category'] ?? ''); ?></td>
+                    <td><form id="request-<?php echo (int)$req['id']; ?>" method="POST" action="update_request_status.php">
+                        <?php echo csrf_field(); ?><input type="hidden" name="request_id" value="<?php echo (int)$req['id']; ?>">
+                        <select name="status" aria-label="Request status">
+                            <?php foreach($allowedRequestStatuses as $st): ?><option value="<?php echo e($st); ?>" <?php echo ($req['status'] ?? '')===$st?'selected':''; ?>><?php echo e($st); ?></option><?php endforeach; ?>
                         </select>
-                        </form>
-                    </td>
-                    <td><button type="submit" form="request-<?php echo (int)$req['id']; ?>" name="update_status">Update</button></td>
+                    </form></td>
+                    <td><button type="submit" form="request-<?php echo (int)$req['id']; ?>" name="update_status" value="1" class="green">Update</button></td>
                 </tr>
-            <?php } ?>
-        </table>
+            <?php } else: ?><tr><td colspan="7" class="admin-empty">No book requests match your filters.</td></tr><?php endif; ?>
+            </tbody>
+        </table></div>
+        <?php if($requestPages>1): ?><nav class="admin-pagination" aria-label="Request pages"><?php for($p=1;$p<=$requestPages;$p++): ?><a class="<?php echo $p===$requestPage?'current':''; ?>" href="?page=book_requests&amp;request_search=<?php echo rawurlencode($requestSearch); ?>&amp;request_status=<?php echo e($requestStatus); ?>&amp;request_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?></nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
     <!-- ========== REVIEWS PAGE ========== -->
     <?php if($page == 'reviews'): ?>
-    <div class="table-section">
-        <h2>⭐ Book Reviews</h2>
-        <table>
-            <tr><th>ID</th><th>User</th><th>Book</th><th>Rating</th><th>Review</th><th>Action</th></tr>
-            <?php
-            $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title FROM reviews JOIN users ON reviews.user_id = users.id JOIN books ON reviews.book_id = books.id ORDER BY reviews.id DESC");
-            while($review = mysqli_fetch_assoc($reviews)){ ?>
+    <div class="table-section admin-reviews-section">
+        <div class="review-summary"><strong><?php echo number_format($reviewTotal); ?></strong><span>Matching reviews</span></div>
+        <form method="GET" action="admin_dashboard.php" class="review-filter-form">
+            <input type="hidden" name="page" value="reviews">
+            <input type="search" name="review_search" value="<?php echo e($reviewSearch); ?>" placeholder="Search user, book or review text...">
+            <select name="review_rating" aria-label="Filter by star rating">
+                <option value="all" <?php echo $reviewRating==='all'?'selected':''; ?>>All ratings</option>
+                <?php for($star=5;$star>=1;$star--): ?><option value="<?php echo $star; ?>" <?php echo $reviewRating===(string)$star?'selected':''; ?>><?php echo $star; ?> stars</option><?php endfor; ?>
+            </select>
+            <button type="submit" class="green">Search / Filter</button>
+            <a href="admin_dashboard.php?page=reviews" class="admin-filter-reset">Reset</a>
+        </form>
+        <div class="admin-wide-table"><table class="admin-reviews-table">
+            <thead><tr><th>ID</th><th>User</th><th>Book</th><th>Rating</th><th>Review</th><th>Action</th></tr></thead>
+            <tbody>
+            <?php if($reviews && mysqli_num_rows($reviews)>0): while($review = mysqli_fetch_assoc($reviews)){ ?>
             <tr>
-                <td><?php echo $review['id']; ?></td>
-                <td><?php echo htmlspecialchars($review['fullname']); ?></td>
-                <td><?php echo htmlspecialchars($review['title']); ?></td>
-                <td><?php echo $review['rating']; ?> ⭐</td>
-                <td><?php echo htmlspecialchars($review['review']); ?></td>
-                <td><form method="POST" action="delete_review.php" style="display:inline;" onsubmit="return confirm('Delete this review?')">
-<?php echo csrf_field(); ?><input type="hidden" name="id" value="<?php echo (int)$review['id']; ?>"><button type="submit" class="red">Delete</button></form></td>
+                <td><?php echo (int)$review['id']; ?></td><td><?php echo e($review['fullname'] ?? ''); ?></td><td><?php echo e($review['title'] ?? ''); ?></td>
+                <td><span class="review-stars"><?php echo (int)$review['rating']; ?> / 5 ⭐</span></td><td class="review-text-cell"><?php echo nl2br(e($review['review'] ?? '')); ?></td>
+                <td><form method="POST" action="delete_review.php" onsubmit="return confirm('Delete this review permanently?')">
+                    <?php echo csrf_field(); ?><input type="hidden" name="id" value="<?php echo (int)$review['id']; ?>"><button type="submit" class="red">Delete</button>
+                </form></td>
             </tr>
-            <?php } ?>
-        </table>
+            <?php } else: ?><tr><td colspan="6" class="admin-empty">No reviews match your filters.</td></tr><?php endif; ?>
+            </tbody>
+        </table></div>
+        <?php if($reviewPages>1): ?><nav class="admin-pagination" aria-label="Review pages"><?php for($p=1;$p<=$reviewPages;$p++): ?><a class="<?php echo $p===$reviewPage?'current':''; ?>" href="?page=reviews&amp;review_search=<?php echo rawurlencode($reviewSearch); ?>&amp;review_rating=<?php echo e($reviewRating); ?>&amp;review_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?></nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
