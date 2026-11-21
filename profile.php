@@ -24,7 +24,7 @@ $recentlyViewed = db_query($conn,
  ORDER BY recently_viewed.viewed_at DESC
  LIMIT 5", 'i', [$user_id]);
 
-$myMessages = db_query($conn, "SELECT * FROM messages WHERE email=? ORDER BY id DESC", 's', [$user_email]);
+$myMessages = db_query($conn, "SELECT * FROM messages WHERE user_id=? OR (user_id IS NULL AND LOWER(TRIM(email))=LOWER(TRIM(?))) ORDER BY id DESC", 'is', [$user_id, $user_email]);
 
 $myRequests = db_query($conn, "SELECT * FROM book_requests WHERE user_id=? ORDER BY id DESC", 'i', [$user_id]);
 
