@@ -46,8 +46,9 @@ $category_stats = mysqli_query($conn,
 
 // Reading progress stats
 $total_reading = (int)db_value($conn, "SELECT COUNT(*) FROM reading_progress", '', [], 0);
-$avg_progress = mysqli_fetch_assoc(mysqli_query($conn, "SELECT AVG(progress) AS avg FROM reading_progress"));
-$avg_progress_value = round($avg_progress['avg'] ?? 0, 1);
+$avg_progress_result = mysqli_query($conn, "SELECT AVG(progress) AS avg FROM reading_progress");
+$avg_progress = $avg_progress_result instanceof mysqli_result ? mysqli_fetch_assoc($avg_progress_result) : [];
+$avg_progress_value = round((float)($avg_progress['avg'] ?? 0), 1);
 ?>
 
 <!DOCTYPE html>
@@ -203,7 +204,7 @@ $avg_progress_value = round($avg_progress['avg'] ?? 0, 1);
             <?php 
             $max_read = 1;
             $read_data = [];
-            while($row = mysqli_fetch_assoc($most_read)){
+            if($most_read instanceof mysqli_result) while($row = mysqli_fetch_assoc($most_read)){
                 $read_data[] = $row;
                 if($row['read_count'] > $max_read) $max_read = $row['read_count'];
             }
@@ -232,7 +233,7 @@ $avg_progress_value = round($avg_progress['avg'] ?? 0, 1);
             <?php 
             $max_download = 1;
             $download_data = [];
-            while($row = mysqli_fetch_assoc($most_downloaded)){
+            if($most_downloaded instanceof mysqli_result) while($row = mysqli_fetch_assoc($most_downloaded)){
                 $download_data[] = $row;
                 if($row['download_count'] > $max_download) $max_download = $row['download_count'];
             }
@@ -261,7 +262,7 @@ $avg_progress_value = round($avg_progress['avg'] ?? 0, 1);
             <?php 
             $max_activity = 1;
             $user_data = [];
-            while($row = mysqli_fetch_assoc($top_users)){
+            if($top_users instanceof mysqli_result) while($row = mysqli_fetch_assoc($top_users)){
                 $user_data[] = $row;
                 if($row['read_count'] > $max_activity) $max_activity = $row['read_count'];
             }
@@ -290,7 +291,7 @@ $avg_progress_value = round($avg_progress['avg'] ?? 0, 1);
             <?php 
             $max_category = 1;
             $category_data = [];
-            while($row = mysqli_fetch_assoc($category_stats)){
+            if($category_stats instanceof mysqli_result) while($row = mysqli_fetch_assoc($category_stats)){
                 $category_data[] = $row;
                 if($row['count'] > $max_category) $max_category = $row['count'];
             }
