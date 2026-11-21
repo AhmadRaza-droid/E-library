@@ -20,6 +20,8 @@ if ($summaryRequest) {
 require_admin($conn);
 $ready = resources_ready($conn);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_post();
+    csrf_require();
     if (isset($_POST['enable_resources'])) {
         $ok = resources_install($conn);
         if ($ok) audit_log($conn, 'Enable student materials', 'Enabled student resource submissions and moderation.');
