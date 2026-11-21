@@ -169,7 +169,29 @@ $page = (isset($_GET['page']) && in_array($_GET['page'], $valid_pages, true)) ? 
 
 $books         = mysqli_query($conn, "SELECT * FROM books ORDER BY id DESC");
 $messages      = mysqli_query($conn, "SELECT * FROM messages ORDER BY id DESC");
-$all_users     = mysqli_query($conn, "SELECT * FROM users ORDER BY id DESC");
+// User management: searchable, filterable and paginated (25 users per page).
+$userSearch = trim((string)($_GET['user_search'] ?? ''));
+$userRole = (string)($_GET['user_role'] ?? 'all');
+$userVerified = (string)($_GET['user_verified'] ?? 'all');
+$userPage = max(1, (int)($_GET['user_page'] ?? 1));
+$userPerPage = 25;
+$userWhere = [];
+if ($userSearch !== '') {
+    $escapedSearch = mysqli_real_escape_string($conn, $userSearch);
+    $userWhere[] = "(fullname LIKE '%{$escapedSearch}%' OR email LIKE '%{$escapedSearch}%' OR CAST(id AS CHAR) LIKE '%{$escapedSearch}%')";
+}
+if ($userRole === 'admin') $userWhere[] = "is_admin=1";
+elseif ($userRole === 'user') $userWhere[] = "COALESCE(is_admin,0)=0";
+else $userRole = 'all';
+if ($userVerified === 'verified') $userWhere[] = "is_verified=1";
+elseif ($userVerified === 'unverified') $userWhere[] = "COALESCE(is_verified,0)=0";
+else $userVerified = 'all';
+$userWhereSql = $userWhere ? ' WHERE ' . implode(' AND ', $userWhere) : '';
+$userTotal = (int)db_value($conn, "SELECT COUNT(*) FROM users" . $userWhereSql, '', [], 0);
+$userPages = max(1, (int)ceil($userTotal / $userPerPage));
+$userPage = min($userPage, $userPages);
+$userOffset = ($userPage - 1) * $userPerPage;
+$all_users = mysqli_query($conn, "SELECT * FROM users" . $userWhereSql . " ORDER BY id DESC LIMIT {$userPerPage} OFFSET {$userOffset}");
 $notifications = mysqli_query($conn, "SELECT * FROM notifications ORDER BY id DESC");
 $categories    = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DESC");
 
@@ -329,6 +351,35 @@ $book_requests = mysqli_query($conn,
         }
         @media (max-width:390px) {
             .stats-container, .quick-action-grid { grid-template-columns:1fr; }
+        }
+        .admin-users-section { min-width:0; }
+        .users-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+        .users-heading h2 { margin-bottom:4px; }
+        .users-summary { color:#718096; font-size:13px; }
+        .users-filter-form { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin:14px 0 18px; }
+        .users-filter-form input[type="search"] { flex:2 1 240px; min-width:180px; }
+        .users-filter-form select { flex:1 1 150px; min-width:130px; }
+        .users-filter-form input, .users-filter-form select { margin:0; min-height:40px; }
+        .users-reset { color:#24527a; padding:9px 12px; text-decoration:none; font-weight:600; }
+        .users-table-wrap { width:100%; overflow-x:auto; }
+        .users-table { min-width:850px; }
+        .users-table td { vertical-align:middle; }
+        .user-status { display:inline-block; border-radius:20px; padding:4px 9px; font-size:12px; font-weight:700; white-space:nowrap; }
+        .user-status.is-verified { color:#166534; background:#dcfce7; }
+        .user-status.is-unverified { color:#92400e; background:#fef3c7; }
+        .user-self-label { color:#64748b; font-size:12px; font-weight:700; }
+        .users-empty { text-align:center; padding:28px; color:#64748b; }
+        .users-pagination { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
+        .users-pagination a { min-width:34px; padding:7px 10px; border-radius:7px; text-align:center; text-decoration:none; background:#edf2f7; color:#1e293b; }
+        .users-pagination a.current { background:#0b1f3a; color:#fff; }
+        body.dark-mode .users-summary { color:#b7c3d6; }
+        body.dark-mode .users-reset { color:#9cc7ff; }
+        body.dark-mode .users-pagination a { background:#263650; color:#f5f7fb; }
+        body.dark-mode .users-pagination a.current { background:#4775aa; }
+        @media(max-width:640px) {
+            .users-filter-form { display:grid; grid-template-columns:1fr 1fr; }
+            .users-filter-form input[type="search"] { grid-column:1 / -1; min-width:0; }
+            .users-filter-form button { min-height:40px; }
         }
     </style>
 </head>
@@ -498,37 +549,57 @@ $book_requests = mysqli_query($conn,
 
     <!-- ========== ALL USERS PAGE ========== -->
     <?php if($page == 'all_users'): ?>
-    <div class="table-section">
-        <h2>👥 All Users (<?php echo mysqli_num_rows($all_users); ?>)</h2>
-        <table>
-            <tr><th>ID</th><th>Profile</th><th>Full Name</th><th>Email</th><th>Role</th><th>Action</th></tr>
-            <?php while($user = mysqli_fetch_assoc($all_users)){ ?>
+    <div class="table-section admin-users-section">
+        <div class="users-heading">
+            <div><h2>👥 All Users</h2><p class="users-summary">Showing <?php echo $userTotal ? ($userOffset + 1) : 0; ?>–<?php echo min($userOffset + $userPerPage, $userTotal); ?> of <?php echo $userTotal; ?> users</p></div>
+        </div>
+        <form method="GET" action="admin_dashboard.php" class="users-filter-form">
+            <input type="hidden" name="page" value="all_users">
+            <input type="search" name="user_search" value="<?php echo e($userSearch); ?>" placeholder="Search name, email or user ID..." aria-label="Search users">
+            <select name="user_role" aria-label="Filter by role">
+                <option value="all" <?php echo $userRole === 'all' ? 'selected' : ''; ?>>All roles</option>
+                <option value="admin" <?php echo $userRole === 'admin' ? 'selected' : ''; ?>>Admins</option>
+                <option value="user" <?php echo $userRole === 'user' ? 'selected' : ''; ?>>Users</option>
+            </select>
+            <select name="user_verified" aria-label="Filter by verification">
+                <option value="all" <?php echo $userVerified === 'all' ? 'selected' : ''; ?>>All verification</option>
+                <option value="verified" <?php echo $userVerified === 'verified' ? 'selected' : ''; ?>>Verified</option>
+                <option value="unverified" <?php echo $userVerified === 'unverified' ? 'selected' : ''; ?>>Unverified</option>
+            </select>
+            <button type="submit" class="green">Search / Filter</button>
+            <a class="users-reset" href="admin_dashboard.php?page=all_users">Reset</a>
+        </form>
+        <div class="users-table-wrap">
+        <table class="users-table">
+            <thead><tr><th>ID</th><th>Profile</th><th>Full Name</th><th>Email</th><th>Role</th><th>Verification</th><th>Actions</th></tr></thead>
+            <tbody>
+            <?php if ($all_users && mysqli_num_rows($all_users) > 0): while($user = mysqli_fetch_assoc($all_users)){ ?>
             <tr>
-                <td><?php echo $user['id']; ?></td>
-                <td><?php echo !empty($user['profile_image']) ? '<img src="'.e($user['profile_image']).'" width="40" style="border-radius:50%;">' : '👤'; ?></td>
-                <td><?php echo htmlspecialchars($user['fullname']); ?></td>
-                <td><?php echo htmlspecialchars($user['email']); ?></td>
-                <td>
-                    <?php if(isset($user['is_admin']) && $user['is_admin'] == 1){ ?>
-                        <span class="badge-admin">👑 Admin</span>
-                    <?php } else { ?>
-                        User
-                    <?php } ?>
-                </td>
+                <td><?php echo (int)$user['id']; ?></td>
+                <td><?php echo !empty($user['profile_image']) ? '<img src="'.e($user['profile_image']).'" width="40" height="40" alt="Profile" style="border-radius:50%;object-fit:cover;">' : '👤'; ?></td>
+                <td><?php echo e($user['fullname'] ?? ''); ?></td>
+                <td><?php echo e($user['email'] ?? ''); ?></td>
+                <td><?php if(isset($user['is_admin']) && (int)$user['is_admin'] === 1){ ?><span class="badge-admin">👑 Admin</span><?php } else { ?>User<?php } ?></td>
+                <td><?php if(isset($user['is_verified']) && (int)$user['is_verified'] === 1){ ?><span class="user-status is-verified">Verified</span><?php } else { ?><span class="user-status is-unverified">Unverified</span><?php } ?></td>
                 <td class="action-buttons">
-                    <?php if(isset($user['is_admin']) && $user['is_admin'] == 1){ ?>
-                        <form method="POST" action="?page=all_users" style="display:inline;" onsubmit="return confirm('Remove admin rights?')">
-<?php echo csrf_field(); ?><input type="hidden" name="remove_admin" value="<?php echo (int)$user['id']; ?>"><button type="submit" class="" style="background:#ffc72c;color:#0b1f3a;">Remove Admin</button></form>
+                    <?php if((int)$user['id'] === $me){ ?><span class="user-self-label">You</span><?php } elseif(isset($user['is_admin']) && (int)$user['is_admin'] === 1){ ?>
+                        <form method="POST" action="?page=all_users" style="display:inline;" onsubmit="return confirm('Remove admin rights from this user?')">
+                        <?php echo csrf_field(); ?><input type="hidden" name="remove_admin" value="<?php echo (int)$user['id']; ?>"><button type="submit" style="background:#ffc72c;color:#0b1f3a;">Remove Admin</button></form>
                     <?php } else { ?>
                         <form method="POST" action="?page=all_users" style="display:inline;" onsubmit="return confirm('Give this user admin rights?')">
-<?php echo csrf_field(); ?><input type="hidden" name="make_admin" value="<?php echo (int)$user['id']; ?>"><button type="submit" class="green">Make Admin</button></form>
+                        <?php echo csrf_field(); ?><input type="hidden" name="make_admin" value="<?php echo (int)$user['id']; ?>"><button type="submit" class="green">Make Admin</button></form>
                     <?php } ?>
-                    <form method="POST" action="?page=all_users" style="display:inline;" onsubmit="return confirm('Delete this user?')">
-<?php echo csrf_field(); ?><input type="hidden" name="delete_user" value="<?php echo (int)$user['id']; ?>"><button type="submit" class="red">Delete</button></form>
+                    <?php if((int)$user['id'] !== $me){ ?><form method="POST" action="?page=all_users" style="display:inline;" onsubmit="return confirm('Permanently delete this user? This cannot be undone.')">
+                    <?php echo csrf_field(); ?><input type="hidden" name="delete_user" value="<?php echo (int)$user['id']; ?>"><button type="submit" class="red">Delete</button></form><?php } ?>
                 </td>
             </tr>
-            <?php } ?>
+            <?php } else: ?><tr><td colspan="7" class="users-empty">No users match these filters.</td></tr><?php endif; ?>
+            </tbody>
         </table>
+        </div>
+        <?php if ($userPages > 1): ?><nav class="users-pagination" aria-label="User pages">
+            <?php for($p = 1; $p <= $userPages; $p++): ?><a class="<?php echo $p === $userPage ? 'current' : ''; ?>" href="?page=all_users&amp;user_search=<?php echo rawurlencode($userSearch); ?>&amp;user_role=<?php echo e($userRole); ?>&amp;user_verified=<?php echo e($userVerified); ?>&amp;user_page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endfor; ?>
+        </nav><?php endif; ?>
     </div>
     <?php endif; ?>
 
