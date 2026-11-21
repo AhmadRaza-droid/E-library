@@ -356,7 +356,7 @@ function getBotReply(message){
     const faqs = [
         {test:/\b(hi|hello|hey|salam|assalam ?o ?alaikum|assalamu ?alaikum|aoa)\b/,answer:'👋 Wa Alaikum Assalam! Main Book’s Library Assistant hoon. Books, accounts, reading, downloads, bookmarks, reviews aur website features ke bare mein pooch sakte hain.'},
         {test:/\b(about (the )?(website|library)|website kya|library kya|what is this website)\b/,answer:'📚 Book’s Library ek digital library hai. Yahan books search aur categories se browse, online read, available files download, favorites/bookmarks save aur book requests submit kar sakte hain.'},
-        {test:/\b(search|find|look for|talash|dhoond|dhund|book name)\b/,answer:'🔎 Book ka title, author ya subject likhein. Main library catalogue mein matching books dhoond kar Read links dikha sakta hoon. Books page ka search/filter bhi use karein.'},
+        
         {test:/\b(download|epub|pdf|download nahi)\b/,answer:'⬇ Books page par selected book ka Download button use karein. Uploaded PDF direct download hoti hai; catalogue books EPUB link de sakti hain. Button unavailable ho ya download fail ho to us book ki file/link filhaal available nahi ho sakti. Contact page par title ke sath report karein.'},
         {test:/\b(read|reading|parhna|parhun|parhney|online book|reader|open book)\b/,answer:'📖 Books page par book dhoond kar Read Book dabayein. Reader mein reading progress save karne ka option ho sakta hai. Reader na khule to book ka title Contact page par report karein.'},
         {test:/\b(login|log in|sign in|password|forgot password)\b/,answer:'🔐 Login page par registered email aur password enter karein. Password bhool gaye hain to Forgot Password use karein, email inbox aur Spam/Junk folder check karein.'},
