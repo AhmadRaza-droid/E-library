@@ -3,6 +3,7 @@ include 'session_timeout.php';
 include 'config.php';
 require_admin($conn);
 require_once __DIR__ . '/audit.php';
+require_once __DIR__ . '/mailer.php';
 
 $allowed = [
     'site_name' => 100,
@@ -20,6 +21,31 @@ $defaults = [
     'maintenance_mode' => '0',
     'allow_registration' => '1',
 ];
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['test_smtp'])) {
+    $recipient = trim((string)($_POST['test_email'] ?? ''));
+    if (!validate_email($recipient)) {
+        js_alert_redirect('❌ Enter a valid email address for the SMTP test.', 'admin_settings.php');
+    }
+    $smtpUser = trim((string)cfg('smtp_user', getenv('LIBRARY_SMTP_USERNAME') !== false ? getenv('LIBRARY_SMTP_USERNAME') : ''));
+    $smtpPass = (string)cfg('smtp_pass', getenv('LIBRARY_SMTP_PASSWORD') !== false ? getenv('LIBRARY_SMTP_PASSWORD') : '');
+    $smtpHost = trim((string)cfg('smtp_host', getenv('LIBRARY_SMTP_HOST') !== false ? getenv('LIBRARY_SMTP_HOST') : 'smtp.gmail.com'));
+    $smtpPort = (int)cfg('smtp_port', getenv('LIBRARY_SMTP_PORT') !== false ? getenv('LIBRARY_SMTP_PORT') : 587);
+    if ($smtpUser === '' || $smtpPass === '' || $smtpHost === '' || $smtpPort !== 587) {
+        js_alert_redirect('❌ SMTP settings incomplete. On InfinityFree use an external provider, username, app password, host and port 587 (STARTTLS).', 'admin_settings.php');
+    }
+    $sent = send_mail(
+        $recipient,
+        'SMTP test recipient',
+        "SMTP test - " . site_name($conn),
+        '<p>This is a test email from ' . e(site_name($conn)) . '.</p><p>If you received this message, SMTP authentication and delivery are working.</p>',
+        'This is a test email from ' . site_name($conn) . '.'
+    );
+    js_alert_redirect(
+        $sent ? '✅ SMTP test email sent. Check the recipient inbox and Spam/Junk folder.' : '❌ SMTP test failed. Check error_log.txt for the PHPMailer error; do not share your SMTP password.',
+        'admin_settings.php'
+    );
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['update_settings'])) {
     $before = [];
@@ -94,6 +120,13 @@ body.dark-mode{background:#0c1422;color:#e7edf5}.dark-mode .settings-card{backgr
 <nav class="settings-links"><a href="admin_dashboard.php">← Dashboard</a><a href="admin_audit_logs.php">🧾 Audit Log</a><a href="admin_logout.php">Logout</a></nav></header>
 <form method="POST" autocomplete="off">
 <?php echo csrf_field(); ?>
+<section class="settings-card"><h2>📨 SMTP delivery test</h2><p>Send one test email using the SMTP credentials stored in config.local.php. InfinityFree requires an external SMTP provider and outbound port 587 with STARTTLS.</p>
+<form method="POST" autocomplete="off">
+<?php echo csrf_field(); ?>
+<div class="settings-field"><label for="test_email">Send test email to</label><input id="test_email" type="email" name="test_email" maxlength="150" required placeholder="your-email@example.com"><span class="settings-hint">Only one test email is sent when you press the button. Credentials are never displayed here.</span></div>
+<button type="submit" name="test_smtp" value="1">✉️ Send SMTP test</button>
+</form></section>
+
 <div class="settings-grid">
 <section class="settings-card"><h2>🏷️ Website identity</h2><p>These details are used in the website's shared branding and page content.</p>
 <div class="settings-field"><label for="site_name">Website name</label><input id="site_name" type="text" name="site_name" maxlength="100" required value="<?php echo e($settings['site_name']); ?>"></div>
