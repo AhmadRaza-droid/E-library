@@ -160,8 +160,8 @@ if (isset($_POST['send_message'])) {
 <section class="contact-section">
 
     <div class="contact-info">
-        <h2>📌 Library Information</h2>
-        <p><b>📧 Email:</b> <?php echo htmlspecialchars($settings['contact_email'] ?? ''); ?></p>
+        <h2>📌 Contact Book's Library</h2>
+        <p><b>📧 Gmail:</b> <a href="mailto:<?php echo htmlspecialchars($settings['contact_email'] ?? ''); ?>"><?php echo htmlspecialchars($settings['contact_email'] ?? ''); ?></a></p>
     </div>
 
     <div class="contact-form">
