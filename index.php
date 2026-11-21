@@ -243,7 +243,22 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
     <div class="book-container">
         <?php while($recent = mysqli_fetch_assoc($recentBooks)){ ?>
             <div class="book-card">
-                <img src="<?php echo htmlspecialchars($recent['cover_image_url']); ?>" alt="Book Cover">
+                <?php
+                    $recentCover = safe_url($recent['cover_image_url'] ?? '');
+                    if ($recentCover === '') $recentCover = safe_url($recent['cover_file'] ?? '');
+                    if ($recentCover === '') $recentCover = safe_url($recent['image'] ?? '');
+                    $recentGutenbergCover = (int)($recent['id'] ?? 0) > 0
+                        ? 'https://www.gutenberg.org/cache/epub/' . (int)$recent['id'] . '/pg' . (int)$recent['id'] . '.cover.medium.jpg'
+                        : '';
+                    $recentFallback = $recentCover !== '' && $recentGutenbergCover !== '' ? $recentGutenbergCover : '';
+                    $recentInitialCover = $recentCover !== '' ? $recentCover : $recentGutenbergCover;
+                ?>
+                <?php if ($recentInitialCover !== ''): ?>
+                    <img src="<?php echo e($recentInitialCover); ?>" <?php if ($recentFallback !== '' && $recentFallback !== $recentInitialCover): ?>data-fallback-src="<?php echo e($recentFallback); ?>"<?php endif; ?> alt="Cover of <?php echo e($recent['title'] ?? 'book'); ?>" loading="lazy" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+                    <div class="book-cover-fallback" hidden aria-label="No cover available">📚</div>
+                <?php else: ?>
+                    <div class="book-cover-fallback" aria-label="No cover available">📚</div>
+                <?php endif; ?>
                 <h3><?php echo htmlspecialchars($recent['title']); ?></h3>
                 <p>✍️ <?php echo htmlspecialchars($recent['author']); ?></p>
                 <?php if(isset($recent['category']) && $recent['category'] != ''): ?>
@@ -264,7 +279,22 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
         <?php if(mysqli_num_rows($topRated) > 0){ ?>
             <?php while($top = mysqli_fetch_assoc($topRated)){ ?>
                 <div class="book-card">
-                    <img src="<?php echo htmlspecialchars($top['cover_image_url']); ?>" alt="Book Cover">
+                    <?php
+                        $topCover = safe_url($top['cover_image_url'] ?? '');
+                        if ($topCover === '') $topCover = safe_url($top['cover_file'] ?? '');
+                        if ($topCover === '') $topCover = safe_url($top['image'] ?? '');
+                        $topGutenbergCover = (int)($top['id'] ?? 0) > 0
+                            ? 'https://www.gutenberg.org/cache/epub/' . (int)$top['id'] . '/pg' . (int)$top['id'] . '.cover.medium.jpg'
+                            : '';
+                        $topFallback = $topCover !== '' && $topGutenbergCover !== '' ? $topGutenbergCover : '';
+                        $topInitialCover = $topCover !== '' ? $topCover : $topGutenbergCover;
+                    ?>
+                    <?php if ($topInitialCover !== ''): ?>
+                        <img src="<?php echo e($topInitialCover); ?>" <?php if ($topFallback !== '' && $topFallback !== $topInitialCover): ?>data-fallback-src="<?php echo e($topFallback); ?>"<?php endif; ?> alt="Cover of <?php echo e($top['title'] ?? 'book'); ?>" loading="lazy" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+                        <div class="book-cover-fallback" hidden aria-label="No cover available">📚</div>
+                    <?php else: ?>
+                        <div class="book-cover-fallback" aria-label="No cover available">📚</div>
+                    <?php endif; ?>
                     <h3><?php echo htmlspecialchars($top['title']); ?></h3>
                     <p>✍️ <?php echo htmlspecialchars($top['author']); ?></p>
                     <p><strong>Rating:</strong> <?php echo round($top['avg_rating'], 1); ?> ⭐</p>
