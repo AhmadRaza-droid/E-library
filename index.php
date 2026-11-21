@@ -11,7 +11,7 @@ $search = trim($_GET['search'] ?? '');
 
 if ($search !== '') {
     $like  = '%' . like_escape($search) . '%';
-    $books = db_query($conn, "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? OR category LIKE ? LIMIT 8", 'sss', [$like, $like, $like]);
+    $books = db_query($conn, "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? OR category LIKE ? OR description LIKE ? LIMIT 8", 'ssss', [$like, $like, $like, $like]);
 } else {
     $books = db_query($conn, "SELECT * FROM books LIMIT 8");
 }
