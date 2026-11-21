@@ -12,6 +12,11 @@ if(isset($_GET['id'])){
         // Project Gutenberg SQL imports contain the Gutenberg ID in books.id, not download_epub_link.
         // Use the ID as a fallback for imported catalog entries.
         $downloadValue = trim((string)($book['download_epub_link'] ?? ''));
+        // Older local PDF records may have pdf_file populated without download_epub_link.
+        if ($downloadValue === '' && !empty($book['pdf_file'])) {
+            $downloadValue = trim((string)$book['pdf_file']);
+        }
+        // Gutenberg imports store the Gutenberg ID in books.id; use it only as the final fallback.
         if ($downloadValue === '' && (int)$book['id'] > 0) {
             $downloadValue = (string)(int)$book['id'];
         }
