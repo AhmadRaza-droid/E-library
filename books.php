@@ -33,6 +33,7 @@ if ($page > $totalPages) { $page = $totalPages; }
 $offset = ($page - 1) * $limit;
 
 $result = db_query($conn, "SELECT * FROM books $where ORDER BY id DESC LIMIT $limit OFFSET $offset", $types, $params);
+$availableCategories = db_all($conn, "SELECT DISTINCT category FROM books WHERE category IS NOT NULL AND TRIM(category) <> '' ORDER BY category ASC");
 ?>
 <!DOCTYPE html>
 <html>
@@ -77,20 +78,9 @@ z-index:999;">
 style="width:100%; padding:14px; margin-top:12px; border-radius:10px; border:2px solid #ddd;">
 
 <option value="">All Categories</option>
-
-<option value="programming" <?php if($category=="programming") echo "selected"; ?>>Programming</option>
-<option value="science" <?php if($category=="science") echo "selected"; ?>>Science</option>
-<option value="adventure" <?php if($category=="adventure") echo "selected"; ?>>Adventure</option>
-<option value="movie" <?php if($category=="movie") echo "selected"; ?>>Movie</option>
-<option value="history" <?php if($category=="history") echo "selected"; ?>>History</option>
-<option value="islamic" <?php if($category=="islamic") echo "selected"; ?>>Islamic</option>
-<option value="urdu" <?php if($category=="urdu") echo "selected"; ?>>Urdu</option>
-<option value="business" <?php if($category=="business") echo "selected"; ?>>Business</option>
-<option value="horror" <?php if($category=="horror") echo "selected"; ?>>Horror</option>
-<option value="detective" <?php if($category=="detective") echo "selected"; ?>>Detective</option>
-<option value="novel" <?php if($category=="novel") echo "selected"; ?>>Novel</option>
-<option value="philosophy" <?php if($category=="philosophy") echo "selected"; ?>>Philosophy</option>
-
+<?php foreach ($availableCategories as $categoryRow): $categoryName = trim((string)$categoryRow['category']); ?>
+<option value="<?php echo e($categoryName); ?>" <?php echo strcasecmp($category, $categoryName) === 0 ? 'selected' : ''; ?>><?php echo e($categoryName); ?></option>
+<?php endforeach; ?>
 </select>
 
 <button type="submit"
