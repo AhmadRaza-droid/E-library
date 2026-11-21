@@ -197,8 +197,29 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
     <?php if(mysqli_num_rows($books) > 0): ?>
         <div class="book-container">
             <?php while($row = mysqli_fetch_assoc($books)){ ?>
+                <?php
+                    $homeBookId = (int)($row['id'] ?? 0);
+                    $homeCover = safe_url($row['cover_image_url'] ?? '');
+                    if ($homeCover === '') $homeCover = safe_url($row['cover_file'] ?? '');
+                    if ($homeCover === '') $homeCover = safe_url($row['image'] ?? '');
+                    $homeGutenbergCover = $homeBookId > 0
+                        ? 'https://www.gutenberg.org/cache/epub/' . $homeBookId . '/pg' . $homeBookId . '.cover.medium.jpg'
+                        : '';
+                    $homeInitialCover = $homeCover !== '' ? $homeCover : $homeGutenbergCover;
+                    $homeCoverFallback = ($homeCover !== '' && $homeGutenbergCover !== '' && $homeCover !== $homeGutenbergCover)
+                        ? $homeGutenbergCover : '';
+                ?>
                 <div class="book-card">
-                    <img src="<?php echo htmlspecialchars($row['cover_image_url']); ?>" alt="Book Cover">
+                    <?php if ($homeInitialCover !== ''): ?>
+                    <img src="<?php echo e($homeInitialCover); ?>"
+                         <?php if ($homeCoverFallback !== ''): ?>data-fallback-src="<?php echo e($homeCoverFallback); ?>"<?php endif; ?>
+                         alt="Cover of <?php echo e($row['title'] ?? 'book'); ?>"
+                         loading="lazy"
+                         onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+                    <div class="book-cover-fallback" hidden aria-label="No cover available">📚</div>
+                    <?php else: ?>
+                    <div class="book-cover-fallback" aria-label="No cover available">📚</div>
+                    <?php endif; ?>
                     <h3><?php echo htmlspecialchars($row['title']); ?></h3>
                     <p>✍️ <?php echo htmlspecialchars($row['author']); ?></p>
                     <?php if(isset($row['category']) && $row['category'] != ''): ?>
