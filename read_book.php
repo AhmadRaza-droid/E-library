@@ -12,6 +12,11 @@ if (!$book) { redirect('books.php'); }
 // Project Gutenberg SQL imports store the Gutenberg ID as books.id, but do not populate read_link.
 // Use that ID as a safe fallback so imported catalog entries get a reading URL.
 $readValue = trim((string)($book['read_link'] ?? ''));
+// Prefer a stored local PDF path when an older upload record has no read_link.
+if ($readValue === '' && !empty($book['pdf_file'])) {
+    $readValue = trim((string)$book['pdf_file']);
+}
+// Gutenberg imports store their numeric ID in books.id; use it only when no local file exists.
 if ($readValue === '' && (int)$book['id'] > 0) {
     $readValue = (string)(int)$book['id'];
 }
