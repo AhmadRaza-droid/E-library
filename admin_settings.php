@@ -120,12 +120,6 @@ body.dark-mode{background:#0c1422;color:#e7edf5}.dark-mode .settings-card{backgr
 <nav class="settings-links"><a href="admin_dashboard.php">← Dashboard</a><a href="admin_audit_logs.php">🧾 Audit Log</a><a href="admin_logout.php">Logout</a></nav></header>
 <form method="POST" autocomplete="off">
 <?php echo csrf_field(); ?>
-<section class="settings-card"><h2>📨 SMTP delivery test</h2><p>Send one test email using the SMTP credentials stored in config.local.php. InfinityFree requires an external SMTP provider and outbound port 587 with STARTTLS.</p>
-<form method="POST" autocomplete="off">
-<?php echo csrf_field(); ?>
-<div class="settings-field"><label for="test_email">Send test email to</label><input id="test_email" type="email" name="test_email" maxlength="150" required placeholder="your-email@example.com"><span class="settings-hint">Only one test email is sent when you press the button. Credentials are never displayed here.</span></div>
-<button type="submit" name="test_smtp" value="1">✉️ Send SMTP test</button>
-</form></section>
 
 <div class="settings-grid">
 <section class="settings-card"><h2>🏷️ Website identity</h2><p>These details are used in the website's shared branding and page content.</p>
@@ -142,6 +136,13 @@ body.dark-mode{background:#0c1422;color:#e7edf5}.dark-mode .settings-card{backgr
 <div class="settings-warning">Be careful: enabling maintenance mode hides the public website from visitors until you switch it off. Admin routes remain accessible.</div>
 </section>
 <div class="settings-save"><span class="settings-status">Settings are saved to the database and remain after logout.</span><button type="submit" name="update_settings" value="1">💾 Save all settings</button></div>
-</div></form></main>
+</div></form>
+<section class="settings-card" style="max-width:1084px;margin:0 auto 30px;"><h2>📨 SMTP delivery test</h2><p>Send one test email using the SMTP credentials stored in config.local.php. InfinityFree requires an external SMTP provider and outbound port 587 with STARTTLS.</p>
+<form method="POST" autocomplete="off">
+<?php echo csrf_field(); ?>
+<div class="settings-field"><label for="test_email">Send test email to</label><input id="test_email" type="email" name="test_email" maxlength="150" required placeholder="your-email@example.com"><span class="settings-hint">Only one test email is sent when you press the button. Credentials are never displayed here.</span></div>
+<button type="submit" name="test_smtp" value="1">✉️ Send SMTP test</button>
+</form></section>
+</main>
 <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
 </body></html>
