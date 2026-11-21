@@ -20,7 +20,8 @@ if (isset($_POST['send_message'])) {
     }
     rate_limit_add('contact:' . client_ip(), 3600);
 
-    $linked_user_id = !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;\n    $saved = db_exec($conn, "INSERT INTO messages (user_id, name, email, message) VALUES (?, ?, ?, ?)", 'isss', [$linked_user_id, $name, $email, $message]);
+    $linked_user_id = !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+    $saved = db_exec($conn, "INSERT INTO messages (user_id, name, email, message) VALUES (?, ?, ?, ?)", 'isss', [$linked_user_id, $name, $email, $message]);
     if ($saved === false) {
         js_alert_redirect('❌ Failed to send message. Please try again.', 'contact.php');
     }
