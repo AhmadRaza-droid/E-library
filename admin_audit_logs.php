@@ -6,7 +6,6 @@ require_once __DIR__ . '/audit.php';
 
 $perPage = 50;
 $pageNo = max(1, (int)($_GET['p'] ?? 1));
-$offset = ($pageNo - 1) * $perPage;
 $filter = trim((string)($_GET['q'] ?? ''));
 $from = trim((string)($_GET['from'] ?? ''));
 $to = trim((string)($_GET['to'] ?? ''));
@@ -23,8 +22,10 @@ if ($from !== '' && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $from)) { $where[] = 
 if ($to !== '' && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $to)) { $where[] = 'created_at <= ?'; $types .= 's'; $params[] = $to . ' 23:59:59'; }
 $sqlWhere = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 $total = (int)db_value($conn, 'SELECT COUNT(*) FROM admin_audit_logs' . $sqlWhere, $types, $params, 0);
-$logs = db_all($conn, 'SELECT * FROM admin_audit_logs' . $sqlWhere . ' ORDER BY id DESC LIMIT ' . (int)$perPage . ' OFFSET ' . (int)$offset, $types, $params);
 $pages = max(1, (int)ceil($total / $perPage));
+$pageNo = min($pageNo, $pages);
+$offset = ($pageNo - 1) * $perPage;
+$logs = db_all($conn, 'SELECT * FROM admin_audit_logs' . $sqlWhere . ' ORDER BY id DESC LIMIT ' . (int)$perPage . ' OFFSET ' . (int)$offset, $types, $params);
 ?>
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
