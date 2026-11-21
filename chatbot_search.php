@@ -28,7 +28,7 @@ if ($q === '' || mb_strlen($q, 'UTF-8') > 180) {
 }
 
 $parts = preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($q, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY);
-$stopWords = ['the','and','for','with','about','please','find','show','some','give','book','books','author','writer','mujhe','mujhay','koi','kisi','batao','batain','bata','hai','hain','kya','wala','wali','chahiye','par','aur','kay','mein','mere','mera','kiye','ki','ka','ke','ko','se','say','karo','chahye','kitab','kitaben','kitaab','suggest','recommend','recommendation','dikhao','do','search','looking','want','need','available','library','related'];
+$stopWords = ['a','an','the','and','or','is','are','am','me','my','you','your','what','which','who','can','please','tell','about','for','with','find','show','some','give','book','books','author','writer','mujhe','mujhay','koi','kisi','batao','batain','bata','hai','hain','kya','wala','wali','chahiye','par','aur','kay','mein','mere','mera','kiye','ki','ka','ke','ko','se','say','karo','chahye','kitab','kitaben','kitaab','suggest','recommend','recommendation','dikhao','do','search','looking','want','need','available','library','related'];
 $terms = [];
 foreach ($parts ?: [] as $part) {
     if (mb_strlen($part, 'UTF-8') > 1 && !in_array($part, $stopWords, true) && !in_array($part, $terms, true)) {
