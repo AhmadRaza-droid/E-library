@@ -8,6 +8,7 @@ if ($id <= 0) { redirect('books.php'); }
 
 $book = db_row($conn, "SELECT * FROM books WHERE id=?", 'i', [$id]);
 if (!$book) { redirect('books.php'); }
+$isGutenbergSource = stripos((string)($book['source'] ?? ''), 'gutenberg') !== false;
 
 // Project Gutenberg SQL imports store the Gutenberg ID as books.id, but do not populate read_link.
 // Use that ID as a safe fallback so imported catalog entries get a reading URL.
@@ -17,7 +18,7 @@ if ($readValue === '' && !empty($book['pdf_file'])) {
     $readValue = trim((string)$book['pdf_file']);
 }
 // Gutenberg imports store their numeric ID in books.id; use it only when no local file exists.
-if ($readValue === '' && (int)$book['id'] > 0) {
+if ($readValue === '' && $isGutenbergSource && (int)$book['id'] > 0) {
     $readValue = (string)(int)$book['id'];
 }
 $readUrl = resolve_read_link($readValue);   // only http(s) / our own uploads
@@ -29,7 +30,7 @@ if ($downloadValue === '' && !empty($book['pdf_file'])) {
     $downloadValue = trim((string)$book['pdf_file']);
 }
 // Gutenberg imports store the Gutenberg ID in books.id; use it only as the final fallback.
-if ($downloadValue === '' && (int)$book['id'] > 0) {
+if ($downloadValue === '' && $isGutenbergSource && (int)$book['id'] > 0) {
     $downloadValue = (string)(int)$book['id'];
 }
 $downloadUrl = resolve_download_link($downloadValue);
