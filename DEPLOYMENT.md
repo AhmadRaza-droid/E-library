@@ -5,6 +5,9 @@ Copy `config.local.example.php` to `config.local.php` on the hosting account and
 
 Environment variables are also supported by the app's configuration layer: DB_HOST, DB_USER, DB_PASS, DB_NAME, SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS. For hosting panels that use the library-specific names, LIBRARY_SMTP_USERNAME, LIBRARY_SMTP_PASSWORD, LIBRARY_SMTP_HOST and LIBRARY_SMTP_PORT are accepted as SMTP fallbacks. Values in config.local.php take priority. Port 587 uses STARTTLS; port 465 uses implicit TLS.
 
+## Maintenance access
+When maintenance mode is enabled, ordinary user sessions remain blocked. Only a separately authenticated admin-panel session bypasses the maintenance page. To open the admin login during maintenance, configure `maintenance_admin_key` in the hosting-only `config.local.php` with a long random secret (at least 32 characters). Do not commit or share this key. The lock link on the maintenance page opens the private access-code form; the code only grants access to the admin login page and does not replace the admin username/password.
+
 ## PHPMailer
 Run `composer install --no-dev --optimize-autoloader` locally, then upload the generated `vendor/` folder to the site root with composer.json and composer.lock. Without this dependency and valid SMTP credentials, email/OTP sending cannot work.
 
