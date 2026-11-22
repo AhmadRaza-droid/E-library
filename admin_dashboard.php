@@ -63,9 +63,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($title === '' || $author === '' || !$read_ok || !$dl_ok) {
             done('❌ Title, author and valid http(s) links are required.', 'add_book');
         }
+
+        // Each book can have its own validated cover upload; an uploaded cover takes priority over its URL.
+        $coverFile = '';
+        if (isset($_FILES['cover_file']) && ($_FILES['cover_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            [$coverOk, $coverResult] = save_upload($_FILES['cover_file'], 'uploads/covers',
+                ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'],
+                3 * 1024 * 1024, 'cover');
+            if (!$coverOk) done('❌ Cover upload: ' . $coverResult, 'add_book');
+            $coverFile = $coverResult;
+            $cover = $coverFile;
+        }
+
         $ok = db_exec($conn,
-            "INSERT INTO books (title, author, description, category, cover_image_url, read_link, download_epub_link)
-             VALUES (?, ?, ?, ?, ?, ?, ?)", 'sssssss', [$title, $author, $description, $category, $cover, $read_link, $dl_link]);
+            "INSERT INTO books (title, author, description, category, cover_image_url, cover_file, read_link, download_epub_link)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 'ssssssss', [$title, $author, $description, $category, $cover, $coverFile, $read_link, $dl_link]);
+        if ($ok === false && $coverFile !== '') @unlink(__DIR__ . '/' . $coverFile);
         done($ok === false ? '❌ Error adding book.' : '✅ Book added successfully!', 'all_books');
     }
 
@@ -686,7 +699,7 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
     <?php if($page == 'add_book'): ?>
     <div class="table-section">
         <h2>➕ Add New Book</h2>
-        <form method="POST" action="">
+        <form method="POST" action="" enctype="multipart/form-data">
 <?php echo csrf_field(); ?>
             <input type="text" name="title" placeholder="Book Title" required>
             <input type="text" name="author" placeholder="Author" required>
@@ -699,7 +712,9 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
                 <?php } ?>
             </select>
             <textarea name="description" placeholder="Description" rows="4"></textarea>
-            <input type="text" name="cover_image_url" placeholder="Cover Image URL">
+            <input type="text" name="cover_image_url" placeholder="Cover Image URL (optional)">
+            <label for="admin-book-cover">Or upload this book's own cover (JPG, PNG or WebP; max 3 MB)</label>
+            <input id="admin-book-cover" type="file" name="cover_file" accept="image/jpeg,image/png,image/webp">
             <input type="text" name="read_link" placeholder="Read Link" required>
             <input type="text" name="download_epub_link" placeholder="Download EPUB Link">
             <button type="submit" name="add_book" class="green">Add Book</button>
