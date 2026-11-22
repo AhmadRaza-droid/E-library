@@ -14,5 +14,7 @@ Export a full database backup in phpMyAdmin first. Then select the E-Library dat
 ## Book import and uploads
 Online Project Gutenberg search requires PHP cURL to be enabled. The offline starter list contains direct Gutenberg book IDs; non-book search pages are rejected as reading/download links. Uploaded PDFs are stored under `uploads/pdfs/`, cover images under `uploads/covers/`, and moderated student materials under `uploads/resources/`. Make sure the hosting account allows PHP to create/write these folders. Enabling student materials creates a private `.htaccess` deny rule in its storage folder. Local PDF downloads are streamed as attachments after the file path is checked.
 
+Admins can attach a separate JPG, PNG or WebP cover (maximum 3 MB) when adding or editing an individual catalogue book. A cover selected on the PDF upload page belongs to that one PDF; batch PDF uploads must omit the cover field so one image is never copied across unrelated books. If no cover is provided, the catalogue shows a neutral placeholder. Automatic first-page PDF cover extraction is not enabled because it depends on PDF rendering extensions/utilities that may not be available on InfinityFree.
+
 ## Upload limits
 The example config uses a 10 MB PDF limit. Confirm InfinityFree's PHP upload_max_filesize and post_max_size before changing it.
