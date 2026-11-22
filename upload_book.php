@@ -53,7 +53,12 @@ if (isset($_POST['upload'])) {
         }
 
         $coverPath = '';
-        if (isset($_FILES['cover']) && ($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+        $hasCoverUpload = isset($_FILES['cover']) && ($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+        // A single cover must never be copied onto every book in a batch upload.
+        if ($multi && $hasCoverUpload) {
+            $error = 'For a book-specific cover, upload one PDF at a time and select that book\'s cover. Remove the cover image to continue with a batch upload.';
+        }
+        if ($error === '' && $hasCoverUpload) {
             [$coverOk, $coverResult] = save_upload($_FILES['cover'], 'uploads/covers',
                 ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'],
                 3 * 1024 * 1024, 'cover');
@@ -128,7 +133,7 @@ if (isset($_POST['upload'])) {
 <section class="form-section" style="display:flex;justify-content:center;padding:30px;">
 <div class="form-box" style="max-width:560px;width:100%;">
     <h2>📤 Upload PDF Books</h2>
-    <p>Upload one PDF with a custom title, or select multiple PDFs. For multiple uploads, each filename becomes the book title.</p>
+    <p>Upload one PDF with its own cover, or select multiple PDFs without a shared cover. For multiple uploads, each filename becomes the book title. To keep each cover matched to its book, upload books one at a time when adding cover images.</p>
     <?php if ($error): ?><p style="color:#c0392b;"><?php echo $error; ?></p><?php endif; ?>
     <form method="POST" enctype="multipart/form-data">
         <?php echo csrf_field(); ?>
