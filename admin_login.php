@@ -35,6 +35,7 @@ if (isset($_POST['login'])) {
             $_SESSION['auth_password_hash'] = hash('sha256', $admin['password']);
             $_SESSION['CREATED']       = time();
             $_SESSION['LAST_ACTIVITY'] = time();
+            unset($_SESSION['maintenance_admin_access_until']);
             audit_log($conn, 'Admin login', 'Successful admin sign-in.');
             js_alert_redirect('Admin Login Successful', 'admin_dashboard.php');
         }
