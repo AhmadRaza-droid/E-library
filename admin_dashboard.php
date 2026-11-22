@@ -82,6 +82,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         done($ok === false ? '❌ Error adding book.' : '✅ Book added successfully!', 'all_books');
     }
 
+    // ---- UPDATE BOOK DETAILS ----
+    if (isset($_POST['update_book'])) {
+        $bookId = (int)($_POST['book_id'] ?? 0);
+        $existingBook = $bookId > 0 ? db_row($conn, "SELECT * FROM books WHERE id=?", 'i', [$bookId]) : null;
+        if (!$existingBook) done('❌ Book not found.', 'all_books');
+
+        $title = trim((string)($_POST['title'] ?? ''));
+        $author = trim((string)($_POST['author'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        $category = trim((string)($_POST['category'] ?? ''));
+        $cover = safe_url($_POST['cover_image_url'] ?? '');
+        $readLink = trim((string)($_POST['read_link'] ?? ''));
+        $downloadLink = trim((string)($_POST['download_epub_link'] ?? ''));
+        $readOk = $readLink === '' ? !empty($existingBook['pdf_file']) : (ctype_digit($readLink) || safe_url($readLink) !== '');
+        $downloadOk = $downloadLink === '' ? !empty($existingBook['pdf_file']) : (ctype_digit($downloadLink) || safe_url($downloadLink) !== '');
+        if ($title === '' || $author === '' || !$readOk || !$downloadOk) {
+            done('❌ Title, author and valid reading/download links are required. Keep links empty only when this book has an uploaded PDF.', 'edit_book');
+        }
+
+        $coverFile = trim((string)($existingBook['cover_file'] ?? ''));
+        if (isset($_FILES['cover_file']) && ($_FILES['cover_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            [$coverOk, $coverResult] = save_upload($_FILES['cover_file'], 'uploads/covers',
+                ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'],
+                3 * 1024 * 1024, 'cover');
+            if (!$coverOk) done('❌ Cover upload: ' . $coverResult, 'edit_book');
+            $coverFile = $coverResult;
+            $cover = $coverFile;
+        }
+
+        $updated = db_exec($conn,
+            "UPDATE books SET title=?, author=?, description=?, category=?, cover_image_url=?, cover_file=?, read_link=?, download_epub_link=? WHERE id=?",
+            'ssssssssi', [$title, $author, $description, $category, $cover, $coverFile, $readLink, $downloadLink, $bookId]);
+        if ($updated === false && $coverFile !== ($existingBook['cover_file'] ?? '')) @unlink(__DIR__ . '/' . $coverFile);
+        done($updated === false ? '❌ Could not update this book.' : '✅ Book details updated successfully!', 'all_books');
+    }
+
     // ---- CATEGORIES ----
     if (isset($_POST['add_category'])) {
         $category = trim($_POST['category'] ?? '');
@@ -183,8 +219,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get current page (whitelist)
-$valid_pages = ['dashboard', 'add_book', 'categories', 'website', 'all_books', 'all_users', 'messages', 'notifications', 'auto_import', 'book_requests', 'reviews'];
+$valid_pages = ['dashboard', 'add_book', 'edit_book', 'categories', 'website', 'all_books', 'all_users', 'messages', 'notifications', 'auto_import', 'book_requests', 'reviews'];
 $page = (isset($_GET['page']) && in_array($_GET['page'], $valid_pages, true)) ? $_GET['page'] : 'dashboard';
+$editBookId = $page === 'edit_book' ? (int)($_GET['id'] ?? 0) : 0;
+$editBook = $editBookId > 0 ? db_row($conn, "SELECT * FROM books WHERE id=?", 'i', [$editBookId]) : null;
+if ($page === 'edit_book' && !$editBook) $page = 'all_books';
 
 // Book management: paginate the catalogue so large imports (2,000+ books) stay fast.
 $bookSearch = trim((string)($_GET['book_search'] ?? ''));
@@ -722,6 +761,32 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
     </div>
     <?php endif; ?>
 
+    <!-- ========== EDIT BOOK PAGE ========== -->
+    <?php if($page == 'edit_book' && $editBook): ?>
+    <div class="table-section">
+        <h2>✏️ Edit Book #<?php echo (int)$editBook['id']; ?></h2>
+        <p>Update this book's details or replace its own cover. Existing PDF files are kept unchanged.</p>
+        <form method="POST" action="admin_dashboard.php?page=edit_book&amp;id=<?php echo (int)$editBook['id']; ?>" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="book_id" value="<?php echo (int)$editBook['id']; ?>">
+            <input type="text" name="title" placeholder="Book Title" value="<?php echo e($editBook['title'] ?? ''); ?>" required>
+            <input type="text" name="author" placeholder="Author" value="<?php echo e($editBook['author'] ?? ''); ?>" required>
+            <input type="text" name="category" placeholder="Category" value="<?php echo e($editBook['category'] ?? ''); ?>">
+            <textarea name="description" placeholder="Description" rows="4"><?php echo e($editBook['description'] ?? ''); ?></textarea>
+            <input type="text" name="cover_image_url" placeholder="Cover Image URL (optional)" value="<?php echo e($editBook['cover_image_url'] ?? ''); ?>">
+            <label for="edit-book-cover">Replace this book's cover (JPG, PNG or WebP; max 3 MB)</label>
+            <input id="edit-book-cover" type="file" name="cover_file" accept="image/jpeg,image/png,image/webp">
+            <p>Current cover: <?php $currentEditCover = safe_url($editBook['cover_image_url'] ?? '') ?: (safe_url($editBook['cover_file'] ?? '') ?: safe_url($editBook['image'] ?? '')); ?>
+                <?php if ($currentEditCover !== ''): ?><img src="<?php echo e($currentEditCover); ?>" width="70" height="95" alt="Current book cover" style="object-fit:cover;border-radius:6px;vertical-align:middle;"><?php else: ?>No cover saved<?php endif; ?>
+            </p>
+            <input type="text" name="read_link" placeholder="Read Link (leave blank only for uploaded PDF)" value="<?php echo e($editBook['read_link'] ?? ''); ?>">
+            <input type="text" name="download_epub_link" placeholder="Download Link (leave blank only for uploaded PDF)" value="<?php echo e($editBook['download_epub_link'] ?? ''); ?>">
+            <button type="submit" name="update_book" class="green">Save Changes</button>
+            <a class="btn" href="admin_dashboard.php?page=all_books">Cancel</a>
+        </form>
+    </div>
+    <?php endif; ?>
+
     <!-- ========== CATEGORIES PAGE ========== -->
     <?php if($page == 'categories'): ?>
     <div class="table-section">
@@ -773,9 +838,12 @@ $reviews = mysqli_query($conn, "SELECT reviews.*, users.fullname, books.title" .
                 <?php $adminCover = safe_url($row['cover_image_url'] ?? '') ?: (safe_url($row['cover_file'] ?? '') ?: safe_url($row['image'] ?? '')); ?>
                 <td><?php if ($adminCover !== ''): ?><img src="<?php echo e($adminCover); ?>" width="50" height="65" loading="lazy" alt="Book cover" onerror="this.replaceWith(document.createTextNode('📚'))" style="border-radius:5px;object-fit:cover;"><?php else: ?>📚<?php endif; ?></td>
                 <td><?php echo e($row['title'] ?? ''); ?></td><td><?php echo e($row['author'] ?? ''); ?></td><td><?php echo e($row['category'] ?? 'N/A'); ?></td><td><?php echo (int)($row['download_count'] ?? 0); ?></td>
-                <td><form method="POST" action="?page=all_books" style="display:inline;" onsubmit="return confirm('Delete this book and its associated uploaded files?')">
-                    <?php echo csrf_field(); ?><input type="hidden" name="delete_book" value="<?php echo (int)$row['id']; ?>"><button type="submit" class="red">Delete</button>
-                </form></td>
+                <td><div class="action-buttons">
+                    <a class="btn btn-green" href="admin_dashboard.php?page=edit_book&amp;id=<?php echo (int)$row['id']; ?>">Edit</a>
+                    <form method="POST" action="?page=all_books" style="display:inline;" onsubmit="return confirm('Delete this book and its associated uploaded files?')">
+                        <?php echo csrf_field(); ?><input type="hidden" name="delete_book" value="<?php echo (int)$row['id']; ?>"><button type="submit" class="red">Delete</button>
+                    </form>
+                </div></td>
             </tr>
             <?php } else: ?><tr><td colspan="7" class="books-empty">No books match your search.</td></tr><?php endif; ?>
             </tbody>
