@@ -202,7 +202,8 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
                     $homeCover = safe_url($row['cover_image_url'] ?? '');
                     if ($homeCover === '') $homeCover = safe_url($row['cover_file'] ?? '');
                     if ($homeCover === '') $homeCover = safe_url($row['image'] ?? '');
-                    $homeGutenbergCover = $homeBookId > 0
+                    $homeIsGutenberg = stripos((string)($row['source'] ?? ''), 'gutenberg') !== false;
+                    $homeGutenbergCover = ($homeIsGutenberg && $homeBookId > 0)
                         ? 'https://www.gutenberg.org/cache/epub/' . $homeBookId . '/pg' . $homeBookId . '.cover.medium.jpg'
                         : '';
                     $homeInitialCover = $homeCover !== '' ? $homeCover : $homeGutenbergCover;
@@ -247,7 +248,8 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
                     $recentCover = safe_url($recent['cover_image_url'] ?? '');
                     if ($recentCover === '') $recentCover = safe_url($recent['cover_file'] ?? '');
                     if ($recentCover === '') $recentCover = safe_url($recent['image'] ?? '');
-                    $recentGutenbergCover = (int)($recent['id'] ?? 0) > 0
+                    $recentIsGutenberg = stripos((string)($recent['source'] ?? ''), 'gutenberg') !== false;
+                    $recentGutenbergCover = ($recentIsGutenberg && (int)($recent['id'] ?? 0) > 0)
                         ? 'https://www.gutenberg.org/cache/epub/' . (int)$recent['id'] . '/pg' . (int)$recent['id'] . '.cover.medium.jpg'
                         : '';
                     $recentFallback = $recentCover !== '' && $recentGutenbergCover !== '' ? $recentGutenbergCover : '';
@@ -283,7 +285,8 @@ $chatRows = db_all($conn, "SELECT id, title, author, SUBSTRING(description, 1, 3
                         $topCover = safe_url($top['cover_image_url'] ?? '');
                         if ($topCover === '') $topCover = safe_url($top['cover_file'] ?? '');
                         if ($topCover === '') $topCover = safe_url($top['image'] ?? '');
-                        $topGutenbergCover = (int)($top['id'] ?? 0) > 0
+                        $topIsGutenberg = stripos((string)($top['source'] ?? ''), 'gutenberg') !== false;
+                        $topGutenbergCover = ($topIsGutenberg && (int)($top['id'] ?? 0) > 0)
                             ? 'https://www.gutenberg.org/cache/epub/' . (int)$top['id'] . '/pg' . (int)$top['id'] . '.cover.medium.jpg'
                             : '';
                         $topFallback = $topCover !== '' && $topGutenbergCover !== '' ? $topGutenbergCover : '';
