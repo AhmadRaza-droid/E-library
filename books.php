@@ -132,7 +132,8 @@ if ($coverPath === '') $coverPath = safe_url($row['image'] ?? ''); // legacy Pro
 
 // Gutenberg SQL imports often have no usable image URL. Their numeric book ID
 // is also the Gutenberg ebook ID, so build a distinct cover URL for each book.
-$gutenbergCover = $book_id > 0
+$isGutenbergBook = stripos((string)($row['source'] ?? ''), 'gutenberg') !== false;
+$gutenbergCover = ($isGutenbergBook && $book_id > 0)
     ? 'https://www.gutenberg.org/cache/epub/' . $book_id . '/pg' . $book_id . '.cover.medium.jpg'
     : '';
 $initialCover = $coverPath !== '' ? $coverPath : $gutenbergCover;
