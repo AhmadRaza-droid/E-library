@@ -100,11 +100,15 @@ if(mysqli_num_rows($result) > 0){
 while($row = mysqli_fetch_assoc($result)){
 
     $book_id = (int)$row['id'];
+    $isGutenbergBook = stripos((string)($row['source'] ?? ''), 'gutenberg') !== false;
     $readValue = trim((string)($row['read_link'] ?? ''));
-    if ($readValue === '' && $book_id > 0) $readValue = (string)$book_id;
+    if ($readValue === '' && !empty($row['pdf_file'])) $readValue = trim((string)$row['pdf_file']);
+    // Numeric IDs are valid fallback links only for imported Project Gutenberg records.
+    if ($readValue === '' && $isGutenbergBook && $book_id > 0) $readValue = (string)$book_id;
     $bookReadUrl = resolve_read_link($readValue);
     $downloadValue = trim((string)($row['download_epub_link'] ?? ''));
-    if ($downloadValue === '' && $book_id > 0) $downloadValue = (string)$book_id;
+    if ($downloadValue === '' && !empty($row['pdf_file'])) $downloadValue = trim((string)$row['pdf_file']);
+    if ($downloadValue === '' && $isGutenbergBook && $book_id > 0) $downloadValue = (string)$book_id;
     $bookDownloadUrl = resolve_download_link($downloadValue);
     $isLocalPdf = $bookDownloadUrl !== '' && str_starts_with($bookDownloadUrl, 'uploads/pdfs/');
 
@@ -132,7 +136,6 @@ if ($coverPath === '') $coverPath = safe_url($row['image'] ?? ''); // legacy Pro
 
 // Gutenberg SQL imports often have no usable image URL. Their numeric book ID
 // is also the Gutenberg ebook ID, so build a distinct cover URL for each book.
-$isGutenbergBook = stripos((string)($row['source'] ?? ''), 'gutenberg') !== false;
 $gutenbergCover = ($isGutenbergBook && $book_id > 0)
     ? 'https://www.gutenberg.org/cache/epub/' . $book_id . '/pg' . $book_id . '.cover.medium.jpg'
     : '';
