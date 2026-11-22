@@ -2,8 +2,8 @@
 // Include AFTER config.php
 $maintenance_mode = get_setting($conn, 'maintenance_mode', '0');
 
-// Admins (logged in through the admin panel, or normal accounts with is_admin=1) can still use the site
-$bypass = is_admin_session($conn) || current_user_is_admin($conn);
+// Only a separately authenticated admin-panel session may bypass maintenance.
+$bypass = is_admin_session($conn);
 
 if ($maintenance_mode == '1' && !$bypass) {
     http_response_code(503);
@@ -32,7 +32,6 @@ if ($maintenance_mode == '1' && !$bypass) {
         <p>We're currently working on improving our library system.</p>
         <p>Please check back later. We apologize for the inconvenience.</p>
         <div class="status">🟡 Maintenance Mode Active</div>
-        <p style="margin-top:20px;"><a href="admin_login.php">Admin login</a></p>
     </div>
 </body>
 </html>
