@@ -75,7 +75,7 @@ $maintenanceExempt = [
 ];
 $validMaintenanceAdminAccess = !empty($_SESSION['maintenance_admin_access_until'])
     && (int)$_SESSION['maintenance_admin_access_until'] >= time();
-$maintenanceAdminSession = is_admin_session($conn) || current_user_is_admin($conn);
+$maintenanceAdminSession = is_admin_session($conn); // Only a separately authenticated admin session bypasses maintenance.
 if ($maintenanceMode && !$maintenanceAdminSession
     && !in_array($scriptName, $maintenanceExempt, true)
     && !($scriptName === 'admin_login.php' && $validMaintenanceAdminAccess)) {
