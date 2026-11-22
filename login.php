@@ -49,9 +49,9 @@ if (isset($_POST['login'])) {
 
         rate_limit_reset($rl_key);
         session_regenerate_id(true);            // prevent session fixation
-        if (!empty($_SESSION['admin_id']) && (int)$_SESSION['admin_id'] !== (int)$user['id']) {
-            unset($_SESSION['admin'], $_SESSION['admin_id'], $_SESSION['admin_email']);
-        }
+        // A normal user login must never inherit an administrator session,
+        // even when both sessions belong to the same account ID.
+        unset($_SESSION['admin'], $_SESSION['admin_id'], $_SESSION['admin_email']);
         unset($_SESSION['temp_email'], $_SESSION['reset_email'], $_SESSION['otp_verified_email']);
         $_SESSION['user_id']  = (int)$user['id'];
         $_SESSION['fullname'] = $user['fullname'];
