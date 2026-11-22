@@ -67,17 +67,23 @@ require_current_session($conn);
 $maintenanceMode = (string)get_setting($conn, 'maintenance_mode', '0') === '1';
 $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $maintenanceExempt = [
-    'admin_login.php', 'admin_logout.php', 'admin_forgot_password.php',
-    'admin_dashboard.php', 'admin_settings.php', 'admin_audit_logs.php',
-    'admin_change_password.php', 'admin_backup.php', 'admin_analytics.php',
-    'admin_resources.php', 'auto_scrape_books.php', 'upload_book.php',
-    'update_request_status.php', 'delete_review.php'
+    'admin_logout.php', 'admin_dashboard.php', 'admin_settings.php',
+    'admin_audit_logs.php', 'admin_change_password.php', 'admin_backup.php',
+    'admin_analytics.php', 'admin_resources.php', 'auto_scrape_books.php',
+    'upload_book.php', 'update_request_status.php', 'delete_review.php',
+    'maintenance_admin_access.php'
 ];
-if ($maintenanceMode && empty($_SESSION['admin_id']) && !in_array($scriptName, $maintenanceExempt, true)) {
+$validMaintenanceAdminAccess = !empty($_SESSION['maintenance_admin_access_until'])
+    && (int)$_SESSION['maintenance_admin_access_until'] >= time();
+$maintenanceAdminSession = is_admin_session($conn) || current_user_is_admin($conn);
+if ($maintenanceMode && !$maintenanceAdminSession
+    && !in_array($scriptName, $maintenanceExempt, true)
+    && !($scriptName === 'admin_login.php' && $validMaintenanceAdminAccess)) {
     http_response_code(503);
     header('Retry-After: 3600');
     $maintenanceTitle = e(site_name($conn));
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Under Maintenance</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#edf4f1;font-family:Segoe UI,Arial,sans-serif;color:#173b56}.box{max-width:560px;margin:20px;padding:42px 30px;background:white;border-radius:18px;text-align:center;box-shadow:0 12px 40px #173b5618}.icon{font-size:54px}.box h1{margin:14px 0}.box p{line-height:1.7;color:#607286}</style></head><body><main class="box"><div class="icon">🛠️</div><h1>' . $maintenanceTitle . ' is under maintenance</h1><p>We are making improvements to the library. Please check back soon.</p></main></body></html>';
+    $accessConfigured = (string)cfg('maintenance_admin_key', '') !== '';
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Under Maintenance</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#edf4f1;font-family:Segoe UI,Arial,sans-serif;color:#173b56;padding:18px;box-sizing:border-box}.box{width:min(560px,100%);margin:20px auto;padding:42px 30px;background:white;border-radius:18px;text-align:center;box-shadow:0 12px 40px #173b5618;box-sizing:border-box}.icon{font-size:54px}.box h1{margin:14px 0}.box p{line-height:1.7;color:#607286}.admin-access{margin:26px auto 0;padding-top:20px;border-top:1px solid #e6edf0;text-align:left}.admin-access label{display:block;font-size:13px;font-weight:700;margin-bottom:8px}.admin-access input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5df;border-radius:9px;font-size:15px}.admin-access button{width:100%;margin-top:10px;padding:12px;border:0;border-radius:9px;background:#173b56;color:#fff;font-weight:700;cursor:pointer}.hint{font-size:12px;color:#788897!important}</style></head><body><main class="box"><div class="icon">🛠️</div><h1>' . $maintenanceTitle . ' is under maintenance</h1><p>We are making improvements to the library. Please check back soon.</p><section class="admin-access"><form method="post" action="maintenance_admin_access.php"><label for="admin-access-key">Administrator access</label>' . csrf_field() . '<input id="admin-access-key" type="password" name="access_key" autocomplete="current-password" required maxlength="200" placeholder="Private admin access code"><button type="submit">Continue to admin login</button></form>' . (!$accessConfigured ? '<p class="hint">Admin access is not configured yet. Set maintenance_admin_key in the private hosting config.</p>' : '<p class="hint">Private administrator access only.</p>') . '</section></main></body></html>';
     exit();
 }
 
