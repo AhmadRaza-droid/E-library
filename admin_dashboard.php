@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $readOk = $readLink === '' ? !empty($existingBook['pdf_file']) : (ctype_digit($readLink) || safe_url($readLink) !== '');
         $downloadOk = $downloadLink === '' ? !empty($existingBook['pdf_file']) : (ctype_digit($downloadLink) || safe_url($downloadLink) !== '');
         if ($title === '' || $author === '' || !$readOk || !$downloadOk) {
-            done('❌ Title, author and valid reading/download links are required. Keep links empty only when this book has an uploaded PDF.', 'edit_book');
+            done('❌ Title, author and valid reading/download links are required. Keep links empty only when this book has an uploaded PDF.', 'edit_book&id=' . $bookId);
         }
 
         $coverFile = trim((string)($existingBook['cover_file'] ?? ''));
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [$coverOk, $coverResult] = save_upload($_FILES['cover_file'], 'uploads/covers',
                 ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'],
                 3 * 1024 * 1024, 'cover');
-            if (!$coverOk) done('❌ Cover upload: ' . $coverResult, 'edit_book');
+            if (!$coverOk) done('❌ Cover upload: ' . $coverResult, 'edit_book&id=' . $bookId);
             $coverFile = $coverResult;
             $cover = $coverFile;
         }
