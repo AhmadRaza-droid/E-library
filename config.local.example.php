@@ -15,4 +15,6 @@ return [
     'smtp_pass' => 'YOUR_GMAIL_APP_PASSWORD',
     'mail_from_name' => "Book's Library",
     'admin_email' => 'YOUR_ADMIN_EMAIL',
+    // Generate a long random value; keep it only in hosting config.local.php.
+    'maintenance_admin_key' => 'GENERATE_A_PRIVATE_RANDOM_KEY',
 ];
