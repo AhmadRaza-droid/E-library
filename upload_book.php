@@ -56,7 +56,7 @@ if (isset($_POST['upload'])) {
         $hasCoverUpload = isset($_FILES['cover']) && ($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
         // A single cover must never be copied onto every book in a batch upload.
         if ($multi && $hasCoverUpload) {
-            $error = 'For a book-specific cover, upload one PDF at a time and select that book\'s cover. Remove the cover image to continue with a batch upload.';
+            $error = 'A cover image can be attached to one PDF only. Remove the cover image to continue with a batch upload.';
         }
         if ($error === '' && $hasCoverUpload) {
             [$coverOk, $coverResult] = save_upload($_FILES['cover'], 'uploads/covers',
@@ -149,7 +149,7 @@ if (isset($_POST['upload'])) {
         <input type="file" name="pdf" accept="application/pdf">
         <label>Or select multiple PDFs (maximum 10 files, <?php echo e($maxPdfMiB); ?> MiB each)</label>
         <input type="file" name="pdfs[]" accept="application/pdf" multiple>
-        <label>Optional shared cover image (jpg/png/webp, max 3 MB)</label>
+        <label>Optional cover for this single PDF only (jpg/png/webp, max 3 MB)</label>
         <input type="file" name="cover" accept="image/jpeg,image/png,image/webp">
         <button type="submit" name="upload">Upload Book(s)</button>
     </form>
