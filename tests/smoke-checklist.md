@@ -19,6 +19,8 @@
 - [ ] Upload one PDF with its own cover; confirm the cover belongs only to that book.
 - [ ] Upload multiple PDFs without a shared cover; confirm no cover is copied across books.
 - [ ] Add a catalogue book through the admin form with an uploaded cover and verify the image appears on Home, Books and Admin.
+- [ ] Edit a catalogue book, change its details and replace its cover; confirm its existing PDF still reads/downloads.
+- [ ] Edit a PDF book with blank link fields; confirm its local `pdf_file` continues to work.
 - [ ] Confirm a non-Gutenberg book with empty links does not get a fabricated Gutenberg reader/download URL.
 - [ ] Confirm local PDF download starts as a file download, not only an in-browser preview.
 - [ ] Reject invalid file types, oversized files and malformed uploads.
